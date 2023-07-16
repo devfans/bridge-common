@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -115,4 +116,30 @@ func Retry(ctx context.Context, f func() error, interval time.Duration, count in
 
 func SetDecimals(a *big.Int, decimals int64) *big.Int {
 	return new(big.Int).Mul(a, new(big.Int).Exp(big.NewInt(10), big.NewInt(decimals), nil))
+}
+
+func CompactError(e error, samples []string) error {
+	if e == nil { return nil }
+	msg := e.Error()
+	for _, s := range samples {
+		if strings.Contains(msg, s) {
+			return errors.New(s)
+		}
+	}
+	return e
+}
+
+func ErrorMatch(e error, samples []string) bool {
+	if e == nil { return false }
+	msg := e.Error()
+	for _, s := range samples {
+		if strings.Contains(msg, s) {
+			return true
+		}
+	}
+	return false
+}
+
+var RateLimitErrors = []string {
+	"Too Many", "Forbidden:", "too many", "denied", "Denied", "exceeded", "ate limit", "loss", "no such host", "403 Forbidden", "(429)", "navailable", "not available",
 }

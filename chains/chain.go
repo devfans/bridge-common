@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/polynetwork/bridge-common/log"
+	"github.com/polynetwork/bridge-common/util"
 )
 
 type Options struct {
@@ -98,7 +99,7 @@ func (s *ChainSDK) WaitTillHeight(ctx context.Context, height uint64, interval t
 	for {
 		h, err := s.Node().GetLatestHeight()
 		if err != nil {
-			log.Error("Failed to get chain latest height err ", "chain", s.ChainID, "err", err)
+			log.Error("Failed to get chain latest height err ", "chain", s.ChainID, "err", util.CompactError(err, util.RateLimitErrors))
 		} else if h >= height {
 			return h, true
 		}
@@ -149,7 +150,7 @@ func (s *ChainSDK) updateSelection() {
 		go func (index int, node SDK) {
 			h, err := node.GetLatestHeight()
 			if err != nil {
-				log.Error("Ping node error", "url", node.Address(), "err", err)
+				log.Error("Ping node error", "url", node.Address(), "err", util.CompactError(err, util.RateLimitErrors))
 			}
 			ch <- [2]uint64{uint64(index), h}
 		} (i, s)
