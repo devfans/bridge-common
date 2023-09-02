@@ -81,7 +81,7 @@ type Wallet struct {
 	provider  Provider                           // active account provider
 	account   accounts.Account                   // active account
 	nonces    map[accounts.Account]NonceProvider // account nonces
-	sdk       *eth.SDK
+	sdk       eth.NodeProvider
 	accounts  []accounts.Account
 	cursor    int
 	config    *Config
@@ -95,7 +95,7 @@ type Provider interface {
 	SignHash(accounts.Account, []byte) ([]byte, error)
 }
 
-func New(config *Config, sdk *eth.SDK) *Wallet {
+func New(config *Config, sdk eth.NodeProvider) *Wallet {
 	w := &Wallet{
 		config: config, sdk: sdk, chainId: config.ChainId, providers: map[accounts.Account]Provider{},
 		nonces:   map[accounts.Account]NonceProvider{},

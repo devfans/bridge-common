@@ -31,12 +31,12 @@ type NonceProvider interface {
 	Update(bool) error
 }
 
-func NewRemoteNonceProvider(sdk *eth.SDK, address common.Address) *RemoteNonceProvider {
+func NewRemoteNonceProvider(sdk eth.NodeProvider, address common.Address) *RemoteNonceProvider {
 	return &RemoteNonceProvider{sdk, address}
 }
 
 type RemoteNonceProvider struct {
-	sdk     *eth.SDK
+	sdk     eth.NodeProvider
 	address common.Address
 }
 
@@ -52,14 +52,14 @@ type DummyNonceProvider uint64
 func (p DummyNonceProvider) Acquire() (uint64, error) { return uint64(p), nil }
 func (p DummyNonceProvider) Update(_success bool) (err error) { return nil }
 
-func NewCacheNonceProvider(sdk *eth.SDK, address common.Address) *CacheNonceProvider {
+func NewCacheNonceProvider(sdk eth.NodeProvider, address common.Address) *CacheNonceProvider {
 	p := &CacheNonceProvider{sdk: sdk, address: address}
 	go p.Update(true)
 	return p
 }
 
 type CacheNonceProvider struct {
-	sdk     *eth.SDK
+	sdk     eth.NodeProvider
 	address common.Address
 	sync.Mutex
 	nonce *uint64

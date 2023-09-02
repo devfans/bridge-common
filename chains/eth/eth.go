@@ -489,3 +489,10 @@ func (c *Clients) EstimateGas(ctx context.Context, from, to common.Address, data
 	}
 	return uint64(hex), nil
 }
+
+type NodeProvider interface{
+	Node() *Client
+	Select() *Client
+	Broadcast(ctx context.Context, tx *types.Transaction) (best int, err error)
+	BatchCall(ctx context.Context, b []rpc.BatchElem) (int, error)
+}

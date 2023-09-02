@@ -79,13 +79,13 @@ type GasPriceOracle interface {
 }
 
 type RemoteGasPriceOracle struct {
-	sdk *eth.SDK
+	sdk eth.NodeProvider
 	price, tip *big.Int
 	sync.RWMutex
 	upgrade bool
 }
 
-func NewRemoteGasPriceOracle(sdk *eth.SDK, upgrade bool, interval time.Duration) (o *RemoteGasPriceOracle, err error) {
+func NewRemoteGasPriceOracle(sdk eth.NodeProvider, upgrade bool, interval time.Duration) (o *RemoteGasPriceOracle, err error) {
 	price, err := sdk.Node().SuggestGasPrice(context.Background())
 	if err != nil {
 		return
