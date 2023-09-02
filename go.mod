@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/blocktree/go-owcrypt v1.1.10
 	github.com/cosmos/cosmos-sdk v0.39.2
+	github.com/dop251/goja v0.0.0-20200721192441-a695b0cdd498
 	github.com/ethereum/go-ethereum v1.10.7
 	github.com/joeqian10/neo-gogogo v1.4.0
 	github.com/mattn/go-isatty v0.0.14
@@ -54,6 +55,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dchest/siphash v1.2.1 // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
+	github.com/dlclark/regexp2 v1.2.0 // indirect
 	github.com/drand/kyber v1.1.4 // indirect
 	github.com/dvsekhvalnov/jose2go v0.0.0-20200901110807-248326c1351b // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
@@ -68,6 +70,7 @@ require (
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
+	github.com/go-sourcemap/sourcemap v2.1.2+incompatible // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/go-test/deep v1.0.5 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect

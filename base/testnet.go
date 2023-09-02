@@ -80,3 +80,10 @@ var ETH_CHAINS = []uint64{
 	ETH, BSC, HECO, OK, MATIC, O3, PLT, PLT2, ARBITRUM, XDAI, OPTIMISM, FANTOM, AVA, METIS, RINKEBY, BOBA, PIXIE, OASIS, HSC,
 	HARMONY, HARMONY, BYTOM, BCSPALETTE, KCC, ONTEVM, MILKO, CUBE, KAVA, ZKSYNC, CELO, CLOVER, CONFLUX, ASTAR, BRISE,
 }
+
+func NativeID(chainID uint64) uint64 {
+	switch chainID {
+	default:
+		panic(fmt.Sprintf("no native id found for %v", chainID))
+	}
+}

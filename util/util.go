@@ -141,5 +141,5 @@ func ErrorMatch(e error, samples []string) bool {
 }
 
 var RateLimitErrors = []string {
-	"Too Many", "Forbidden:", "too many", "denied", "Denied", "exceeded", "ate limit", "loss", "no such host", "403 Forbidden", "(429)", "navailable", "not available",
+	"Too Many", "orbidden", "too many", "denied", "Denied", "exceeded", "ate limit", "loss", "no such host", "403 Forbidden", "(429)", "navailable", "not available",
 }

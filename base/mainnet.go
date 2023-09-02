@@ -20,6 +20,8 @@
 
 package base
 
+import "fmt"
+
 const (
 	POLY     uint64 = 0
 	BTC      uint64 = 1
@@ -84,6 +86,7 @@ const (
 	XDC       uint64 = 201
 	POLYGONZK uint64 = 202
 	FEVM      uint64 = 203
+	BASE      uint64 = 204
 
 	ENV = "mainnet"
 )
@@ -98,4 +101,53 @@ var ETH_CHAINS = []uint64{
 	ETH, BSC, HECO, OK, MATIC, O3, PLT, ARBITRUM, XDAI, OPTIMISM, FANTOM, AVA, METIS, BOBA, PIXIE, OASIS, HSC, HARMONY,
 	BYTOM, BCSPALETTE, KCC, ONTEVM, MILKO, CUBE, KAVA, ZKSYNC, CELO, CLOVER, CONFLUX, ASTAR, BRISE, CORE, KLAY, CANTO, XDC,
 	DEXIT, CLOUDTX, ZKSYNC, POLYGONZK, FEVM,
+}
+
+func NativeID(chainID uint64) uint64 {
+	switch chainID {
+	case ETH:
+		return 1
+	case BSC:
+		return 56
+	case CORE:
+		return 1116
+	case METIS:
+		return 1088
+	case MATIC:
+		return 137
+	case POLYGONZK:
+		return 1101
+	case ARBITRUM:
+		return 42161
+	case OPTIMISM:
+		return 10
+	case HECO:
+		return 128
+	case OK:
+		return 66
+	case FANTOM:
+		return 250
+	case XDAI:
+		return 100
+	case AVA:
+		return 43114
+	case KCC:
+		return 321
+	case CONFLUX:
+		return 1030
+	case ZKSYNC:
+		return 324
+	case FEVM:
+		return 314
+	case XDC:
+		return 50
+	case BASE:
+		return 8453
+	case BRISE:
+		return 32520
+	case CUBE:
+		return 1818
+	default:
+		panic(fmt.Sprintf("no native id found for %v", chainID))
+	}
 }

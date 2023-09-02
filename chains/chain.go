@@ -19,24 +19,56 @@ package chains
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/dop251/goja"
 	"github.com/polynetwork/bridge-common/log"
+	"github.com/polynetwork/bridge-common/tools"
 	"github.com/polynetwork/bridge-common/util"
 )
 
 type Options struct {
-	ChainID  uint64
+	ChainID, NativeID  uint64
+	Providers []RpcProvider
 	Nodes    []string
 	Interval time.Duration
 	MaxGap   uint64
 }
 
+func (o *Options) ListNodes() (list []string) {
+	urls := make(map[string]bool)
+	for _, p := range o.Providers {
+		list, err := p.Load(o.NativeID)
+		if err != nil {
+			log.Error("Failed to load urls from provider", "err", err)
+			continue
+		}
+		for _, url := range list {
+			urls[strings.TrimSpace(url)] = true
+		}
+	}
+
+	for _, url := range o.Nodes {
+		urls[strings.TrimSpace(url)] = true
+	}
+
+	list = make([]string, 0, len(urls))
+	for url := range urls {
+		list = append(list, url)
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i] < list[j]} )
+	return
+}
+
 func (o *Options) Key() string {
-	return fmt.Sprintf("SDK:%v:%s", o.ChainID, strings.Join(o.Nodes, ":"))
+	return fmt.Sprintf("SDK:%v:%s", o.ChainID, strings.Join(o.ListNodes(), ":"))
 }
 
 type SDK interface {
@@ -289,4 +321,87 @@ func NewChainSDK(chainID uint64, nodes []SDK, interval time.Duration, maxGap uin
 		go sdk.monitor(interval)
 	}
 	return
+}
+
+type RpcProvider interface {
+	Load(uint64) ([]string, error)
+}
+
+type JsonRpcProvider struct {
+	Path string
+	RpcUrlProvider
+}
+
+func NewJsonRpcProvider(path string) (p *JsonRpcProvider, err error) {
+	p = &JsonRpcProvider{ Path: path }
+	f, err := os.Open(path)
+	if err != nil { return }
+	defer f.Close()
+	data, err := io.ReadAll(f)
+	if err != nil { return }
+	m := make(RpcUrlProvider)
+	err = json.Unmarshal(data, &m)
+	return
+}
+
+type RpcUrlProvider map[uint64][]string
+func NewUrlProvider(id uint64, urls []string) RpcUrlProvider { return RpcUrlProvider{id: urls} }
+func (p RpcUrlProvider) Load(id uint64) ([]string, error) { return p[id], nil }
+
+type ChainListRpcProvider struct {
+	RpcUrlProvider
+}
+
+func NewChainListRpcProvider() (p *ChainListRpcProvider, err error) {
+	p = &ChainListRpcProvider{RpcUrlProvider: make(RpcUrlProvider)}
+	result, err := tools.GetRaw("https://raw.githubusercontent.com/DefiLlama/chainlist/main/constants/extraRpcs.js")
+	if err != nil { return }
+	result2, err := tools.GetRaw("https://raw.githubusercontent.com/DefiLlama/chainlist/main/constants/llamaNodesRpcs.js")
+	if err != nil { return }
+	body := strings.SplitN(string(result), "export ", 2)[1]
+	body = TrimLines(body, 0, 4)
+	body = strings.ReplaceAll(body, "const ", "var ")
+	body2 := strings.SplitN(string(result2), "export ", 3)[1]
+	body2 = strings.ReplaceAll(body2, "const ", "var ")
+	vm := goja.New()
+	vm.RunString("privacyStatement = {}")
+	_, err = vm.RunString(body)
+	if err != nil { return }
+	_, err = vm.RunString(body2)
+	if err != nil { return }
+	_, err = vm.RunString(`list = {};Object.keys(extraRpcs).forEach(function(id) {list[id]=extraRpcs[id]["rpcs"].map(function(o){return typeof(o) == "string" ?o:o.url })} )`)
+	if err != nil { return }
+	_, err = vm.RunString(`Object.keys(llamaNodesRpcs).forEach(function(id) {nodes=llamaNodesRpcs[id]["rpcs"].map(function(o){return typeof(o) == "string" ?o:o.url }); if (list[id]) {list[id]=list[id].concat(nodes)}else{list[id]=nodes}} )`)
+	if err != nil { return }
+	v, err := vm.RunString("JSON.stringify(list)")
+	if err != nil { return }
+	err = json.Unmarshal([]byte(v.Export().(string)), &p.RpcUrlProvider)
+	return
+}
+
+func TrimLines(s string, start, end int) string {
+	if start > 0 {
+		for i, t := range s {
+			if t == 0x0A {
+				start--
+				if start == 0 {
+					start = i + 1
+					break
+				}
+			}
+		}
+	}
+	if end > 0 {
+		for i := len(s) - 1; i >= 0; i-- {
+			if s[i] == 0x0A {
+				end--
+				if end == 0 {
+					end = i
+					break
+				}
+			}
+		}
+	}
+	if end < start { end = start }
+	return s[start:end]
 }

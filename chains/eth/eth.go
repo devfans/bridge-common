@@ -19,6 +19,7 @@ package eth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -207,8 +208,12 @@ func(c *Client) Unsubscribe(ch chan <-uint64) {
 }
 
 func (c *Client) GetLatestHeight() (uint64, error) {
+	return c.LatestHeight(context.Background())
+}
+
+func (c *Client) LatestHeight(ctx context.Context) (uint64, error) {
 	var result hexutil.Big
-	err := c.Rpc.CallContext(context.Background(), &result, "eth_blockNumber")
+	err := c.Rpc.CallContext(ctx, &result, "eth_blockNumber")
 	for err != nil {
 		return 0, err
 	}
@@ -355,4 +360,132 @@ func (s *SDK) BatchCall(ctx context.Context, b []rpc.BatchElem) (int, error) {
 		} (idx)
 	}
 	return nodes[0], s.nodes[nodes[0]].Rpc.BatchCallContext(ctx, b)
+}
+
+type Clients struct {
+	*ChainSDK
+	nodes   []*Client
+	options *chains.Options
+}
+
+func (s *Clients) Node() *Client {
+	return s.nodes[s.ChainSDK.Index()]
+}
+
+func (s *Clients) Broadcast(ctx context.Context, tx *types.Transaction) (best int, err error) {
+	nodes := s.Nodes()
+	for _, idx := range nodes[1:] {
+		go func(id int) {
+			s.nodes[id].SendTransaction(ctx, tx)
+		} (idx)
+	}
+	return nodes[0], s.nodes[nodes[0]].SendTransaction(ctx, tx)
+}
+
+func (s *Clients) Select() *Client {
+	return s.nodes[s.ChainSDK.Select()]
+}
+func (s *Clients) Create() (interface{}, error) {
+	list := s.options.ListNodes()
+	clients := make([]*Client, len(list))
+	nodes := make([]Node, len(list))
+	for i, url := range list {
+		client := New(url)
+		client.index = i
+		nodes[i] = client
+		clients[i] = client
+	}
+	sdk, err := NewChainSDK(s.options.ChainID, s.options.NativeID, nodes, s.options.Interval, s.options.MaxGap)
+	if err != nil {
+		return nil, err
+	}
+	return &Clients{ChainSDK: sdk, nodes: clients}, nil
+}
+
+func (s *Clients) Key() string {
+	if s.ChainSDK != nil {
+		return s.ChainSDK.Key()
+	} else if s.options != nil {
+		return s.options.Key()
+	} else {
+		panic("Unable to identify the sdk")
+	}
+}
+
+func (s *Clients) BatchCall(ctx context.Context, b []rpc.BatchElem) (int, error) {
+	nodes := s.Nodes()
+	for _, idx := range nodes[1:] {
+		go func(id int) {
+			defer func() { recover() } ()
+			_ = s.nodes[id].Rpc.BatchCallContext(ctx, b)
+		} (idx)
+	}
+	return nodes[0], s.nodes[nodes[0]].Rpc.BatchCallContext(ctx, b)
+}
+
+func WithProviders(opt *chains.Options) (*Clients, error) {
+	if opt == nil || opt.NativeID == 0 {
+		return nil, fmt.Errorf("unexpected nil option or missing native id")
+	}
+	if opt.Interval == 0 {
+		opt.Interval = time.Minute
+	}
+
+	sdk, err := util.Single(&Clients{
+		options: opt,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return sdk.(*Clients), nil
+}
+
+var ErrAllNodesUnavailable = errors.New("all node unavailable")
+func (s *Clients) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+	index, ok := s.Best()
+	if !ok {
+		return ErrAllNodesUnavailable
+	}
+	err := s.nodes[index].Rpc.CallContext(ctx, result, method, args...)
+	for util.ErrorMatch(err, util.RateLimitErrors) {
+		s.UpdateNodeStatus(index, NodeRateLimited)
+		index, ok = s.Next(index)
+		if !ok {
+			return ErrAllNodesUnavailable
+		}
+		err = s.nodes[index].Rpc.CallContext(ctx, result, method, args...)
+	}
+	// log.Info("Call context", "node", s.nodes[index].address)
+	return err
+}
+
+func (c *Clients) GetLatestHeight(ctx context.Context) (uint64, error) {
+	var result hexutil.Big
+	err := c.CallContext(ctx, &result, "eth_blockNumber")
+	for err != nil {
+		return 0, err
+	}
+	return (*big.Int)(&result).Uint64(), err
+}
+
+func (c *Clients) EstimateGas(ctx context.Context, from, to common.Address, data []byte, value, gasPrice *big.Int) (uint64, error) {
+	var hex hexutil.Uint64
+	arg := map[string]interface{}{
+		"from": from,
+		"to":   &to,
+	}
+	if len(data) > 0 {
+		arg["data"] = hexutil.Bytes(data)
+	}
+	if value != nil {
+		arg["value"] = (*hexutil.Big)(value)
+	}
+	if gasPrice != nil {
+		arg["gasPrice"] = (*hexutil.Big)(gasPrice)
+	}
+	err := c.CallContext(ctx, &hex, "eth_estimateGas", arg)
+	if err != nil {
+		return 0, err
+	}
+	return uint64(hex), nil
 }

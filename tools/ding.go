@@ -88,6 +88,9 @@ func PostJson(url string, payload interface{}) error {
 		return err
 	}
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
@@ -127,6 +130,9 @@ func PostJsonAs(url string, construct func(*http.Request), payload interface{}, 
 		body = bytes.NewBuffer(data)
 	}
 	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	if construct != nil {
 		construct(req)
@@ -157,6 +163,9 @@ func GetJsonFor(url string, result interface{}) error {
 
 func GetJsonAs(url string, construct func(*http.Request), result interface{}) error {
 	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
 	req.Header.Set("Content-Type", "application/json")
 	if construct != nil {
 		construct(req)
@@ -179,4 +188,23 @@ func GetJsonAs(url string, construct func(*http.Request), result interface{}) er
 		log.Debug("GetJson response", "url", url, "Body", string(respBody))
 	}
 	return err
+}
+
+func GetRaw(url string) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return respBody, nil
 }
