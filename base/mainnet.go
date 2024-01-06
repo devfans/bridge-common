@@ -87,6 +87,8 @@ const (
 	POLYGONZK uint64 = 202
 	FEVM      uint64 = 203
 	BASE      uint64 = 204
+	ETHW      uint64 = 205
+	ETHF      uint64 = 206
 
 	ENV = "mainnet"
 )
@@ -100,7 +102,7 @@ var CHAINS = []uint64{
 var ETH_CHAINS = []uint64{
 	ETH, BSC, HECO, OK, MATIC, O3, PLT, ARBITRUM, XDAI, OPTIMISM, FANTOM, AVA, METIS, BOBA, PIXIE, OASIS, HSC, HARMONY,
 	BYTOM, BCSPALETTE, KCC, ONTEVM, MILKO, CUBE, KAVA, ZKSYNC, CELO, CLOVER, CONFLUX, ASTAR, BRISE, CORE, KLAY, CANTO, XDC,
-	DEXIT, CLOUDTX, ZKSYNC, POLYGONZK, FEVM,
+	DEXIT, CLOUDTX, ZKSYNC, POLYGONZK, FEVM, ETHW, ETHF,
 }
 
 func NativeID(chainID uint64) uint64 {
@@ -147,6 +149,10 @@ func NativeID(chainID uint64) uint64 {
 		return 32520
 	case CUBE:
 		return 1818
+	case ETHW:
+		return 10001
+	case ETHF:
+		return 513100
 	default:
 		panic(fmt.Sprintf("no native id found for %v", chainID))
 	}
