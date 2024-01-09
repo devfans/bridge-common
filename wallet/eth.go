@@ -75,7 +75,7 @@ func (w *EthWallet) Estimate(account accounts.Account, addr common.Address, amou
 }
 
 // NOTE: gasPrice, gasPriceX used as gas tip here!
-func (w *EthWallet) QuikcSendWithAccount(account accounts.Account, addr common.Address, amount *big.Int, gasLimit uint64, price GasPriceOracle, gasPriceX *big.Float, data []byte) (hash string, err error) {
+func (w *EthWallet) QuickSendWithAccount(account accounts.Account, addr common.Address, amount *big.Int, gasLimit uint64, price GasPriceOracle, gasPriceX *big.Float, data []byte) (hash string, err error) {
 	tip, cap, limit, err := w.Estimate(account, addr, amount, gasLimit, price, gasPriceX, data)
 	if err != nil {
 		if strings.Contains(err.Error(), "has been executed") {

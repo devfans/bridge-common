@@ -168,6 +168,10 @@ func GetChainName(id uint64) string {
 		return "PolygonZK"
 	case FEVM:
 		return "FIL"
+	case ETHW:
+		return "ETHW"
+	case ETHF:
+		return "ETHF"
 	default:
 		return fmt.Sprintf("Unknown(%d)", id)
 	}
@@ -232,7 +236,7 @@ func SameAsETH(chainId uint64) bool {
 
 func UseDynamicFeeTx(chainId uint64) bool {
 	switch chainId {
-	case ETH, MATIC:
+	case ETH, MATIC, FEVM:
 		return true
 	default:
 		return false
