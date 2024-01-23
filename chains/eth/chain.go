@@ -119,7 +119,7 @@ func (s *ChainSDK) dial(indices []int) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
 		chainID, err := s.nodes[i].ChainID(ctx)
 		if err != nil || chainID == nil || chainID.Uint64() != s.NativeID {
-			log.Error("Failed to verify chain id", "chainID", chainID, "expected", s.NativeID, "addr", s.nodes[i].Address(), "err", err)
+			log.Error("Failed to verify chain id", "chainID", chainID, "expected", s.NativeID, "addr", s.nodes[i].Address(), "err", util.CompactError(err, util.RateLimitErrors))
 		} else {
 			s.Lock()
 			switch s.state[i] {
