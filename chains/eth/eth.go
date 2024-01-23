@@ -423,6 +423,24 @@ func (s *Clients) BatchCall(ctx context.Context, b []rpc.BatchElem) (int, error)
 	return nodes[0], s.nodes[nodes[0]].Rpc.BatchCallContext(ctx, b)
 }
 
+func (s *Clients) BatchCallContext(ctx context.Context, b []rpc.BatchElem) error {
+	index, ok := s.Best()
+	if !ok {
+		return ErrAllNodesUnavailable
+	}
+	err := s.nodes[index].Rpc.BatchCallContext(ctx, b)
+	for util.ErrorMatch(err, util.RateLimitErrors) {
+		s.UpdateNodeStatus(index, NodeRateLimited)
+		index, ok = s.Next(index)
+		if !ok {
+			return ErrAllNodesUnavailable
+		}
+		err = s.nodes[index].Rpc.BatchCallContext(ctx, b)
+	}
+	// log.Info("Call context", "node", s.nodes[index].address)
+	return err
+}
+
 func WithProviders(opt *chains.Options) (*Clients, error) {
 	if opt == nil || opt.NativeID == 0 {
 		return nil, fmt.Errorf("unexpected nil option or missing native id")

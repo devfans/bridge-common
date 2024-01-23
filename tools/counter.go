@@ -16,7 +16,7 @@ type TimedCounter struct {
 
 func NewTimedCounter(interval time.Duration) (*TimedCounter, error) {
 	if interval <= 0 {
-		return nil, fmt.Errorf("Invalid timed counter duration %v", interval)
+		return nil, fmt.Errorf("invalid timed counter duration %v", interval)
 	}
 	c := &TimedCounter{interval: interval}
 	go c.run()
