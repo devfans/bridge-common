@@ -117,22 +117,29 @@ func (s *ChainSDK) WaitTillHeight(ctx context.Context, height uint64, interval t
 }
 
 func (s *ChainSDK) dial(indices []int) {
-	for _, i := range indices {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second * 3)
-		chainID, err := s.nodes[i].ChainID(ctx)
-		if err != nil || chainID == nil || chainID.Uint64() != s.NativeID {
-			log.Error("Failed to verify chain id", "chainID", chainID, "expected", s.NativeID, "addr", s.nodes[i].Address(), "err", util.CompactError(err, util.RateLimitErrors))
-		} else {
-			s.Lock()
-			switch s.state[i] {
-			case NodeRateLimited, NodeUninitialized:
-				s.state[i] = NodeUnavailable
+	wg := new(sync.WaitGroup)
+	for _, _i := range indices {
+		wg.Add(1)
+		go func (i int) {
+			defer wg.Done()
+			node := s.nodes[i]
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second * 2)
+			chainID, err := node.ChainID(ctx)
+			if err != nil || chainID == nil || chainID.Uint64() != s.NativeID {
+				log.Error("Failed to verify chain id", "chainID", chainID, "expected", s.NativeID, "addr", node.Address(), "err", util.CompactError(err, util.RateLimitErrors))
+			} else {
+				s.Lock()
+				switch s.state[i] {
+				case NodeRateLimited, NodeUninitialized:
+					s.state[i] = NodeUnavailable
+				}
+				s.Unlock()
+				log.Info("Validated node", "chainID", s.NativeID, "addr", node.Address())
 			}
-			s.Unlock()
-			log.Info("Validated node", "chainID", s.NativeID, "addr", s.nodes[i].Address())
-		}
-		cancel()
+			cancel()
+		}(_i)
 	}
+	wg.Wait()
 }
 
 func (s *ChainSDK) startDialing() {
