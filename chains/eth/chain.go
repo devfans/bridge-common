@@ -126,7 +126,7 @@ func (s *ChainSDK) dial(indices []int) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second * 2)
 			chainID, err := node.ChainID(ctx)
 			if err != nil || chainID == nil || chainID.Uint64() != s.NativeID {
-				log.Error("Failed to verify chain id", "chainID", chainID, "expected", s.NativeID, "addr", node.Address(), "err", util.CompactError(err, util.RateLimitErrors))
+				log.Debug("Failed to verify chain id", "chainID", chainID, "expected", s.NativeID, "addr", node.Address(), "err", util.CompactError(err, util.RateLimitErrors))
 			} else {
 				s.Lock()
 				switch s.state[i] {
@@ -252,7 +252,7 @@ func (s *ChainSDK) updateSelection() {
 		go func (index int, node Node) {
 			h, err := node.LatestHeight(ctx)
 			if err != nil {
-				log.Error("Ping node error", "url", node.Address(), "err", util.CompactError(err, util.RateLimitErrors))
+				log.Debug("Ping node error", "url", node.Address(), "err", util.CompactError(err, util.RateLimitErrors))
 			}
 			ch <- [2]uint64{uint64(index), h}
 		} (i, s)
@@ -318,6 +318,7 @@ func (s *ChainSDK) updateSelection() {
 	}
 	s.Unlock()
 	if shouldNotify {
+		log.Info("Chain connectivity changed", "chain", base.GetChainName(s.ChainID), "avails", avails)
 		select {
 		case s.notify <- avails:
 		default:
@@ -325,7 +326,7 @@ func (s *ChainSDK) updateSelection() {
 	}
 
 	if changed && status == 1 {
-		log.Info("Changing best node", "chain_id", s.ChainID, "height", height, "elapse", perf, "delta", perf-best, "addr", node.Address())
+		log.Debug("Changing best node", "chain_id", s.ChainID, "height", height, "elapse", perf, "delta", perf-best, "addr", node.Address())
 	}
 }
 
