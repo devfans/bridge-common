@@ -385,6 +385,7 @@ func (s *Clients) Broadcast(ctx context.Context, tx *types.Transaction) (best in
 func (s *Clients) Select() *Client {
 	return s.nodes[s.ChainSDK.Select()]
 }
+
 func (s *Clients) Create() (interface{}, error) {
 	list := s.options.ListNodes()
 	clients := make([]*Client, len(list))
@@ -395,10 +396,7 @@ func (s *Clients) Create() (interface{}, error) {
 		nodes[i] = client
 		clients[i] = client
 	}
-	sdk, err := NewChainSDK(s.options.ChainID, s.options.NativeID, nodes, s.options.Interval, s.options.MaxGap)
-	if err != nil {
-		return nil, err
-	}
+	sdk := NewChainSDKAsync(s.options.ChainID, s.options.NativeID, nodes, s.options.Interval, s.options.MaxGap)
 	return &Clients{ChainSDK: sdk, nodes: clients}, nil
 }
 

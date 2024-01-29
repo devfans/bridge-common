@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/polynetwork/bridge-common/base"
 	"github.com/polynetwork/bridge-common/log"
 	"github.com/polynetwork/bridge-common/util"
 )
@@ -67,6 +68,7 @@ type ChainSDK struct {
 	maxGap   uint64
 	sync.RWMutex
 	exit chan struct{}
+	notify chan int
 }
 
 func (s *ChainSDK) Key() string {
@@ -287,18 +289,20 @@ func (s *ChainSDK) updateSelection() {
 
 	s.Lock()
 	s.node = node
+	shouldNotify := s.status != status
 	s.status = status
 	s.height = height
 	changed = s.index != index
 	s.index = index
+	avails := 0
 	for i, h := range state {
 		nodeStatus := NodeAvailable
-		if h + s.maxGap < height {
-			if h > 0 {
-				nodeStatus = NodeUnavailable
-			} else {
-				nodeStatus = NodeRateLimited
-			}
+		if h == 0 {
+			nodeStatus = NodeRateLimited
+		} else if h + s.maxGap < height {
+			nodeStatus = NodeUnavailable
+		} else {
+			avails++
 		}
 		switch s.state[i] {
 		case NodeAvailable, NodeUnavailable, NodeRateLimited:
@@ -306,6 +310,12 @@ func (s *ChainSDK) updateSelection() {
 		}
 	}
 	s.Unlock()
+	if shouldNotify {
+		select {
+		case s.notify <- avails:
+		default:
+		}
+	}
 
 	if changed && status == 1 {
 		log.Info("Changing best node", "chain_id", s.ChainID, "height", height, "elapse", perf, "delta", perf-best, "addr", node.Address())
@@ -396,6 +406,21 @@ func (s *ChainSDK) Init() error {
 	return nil
 }
 
+func (s *ChainSDK) InitAsync() {
+	go func () {
+		log.Info("Initializing chain sdk", "chainID", s.ChainID, "size", len(s.nodes))
+		s.startDialing()
+		s.updateSelection()
+		go s.monitor(s.interval)
+	} ()
+	for avails := range s.nodes {
+		if avails > 0 {
+			log.Info("ChainSDK ready now", "chain", base.GetChainName(s.ChainID), "native_id", s.NativeID, "avails", avails)
+			return
+		}
+	}
+}
+
 func NewChainSDK(chainID, nativeID uint64, nodes []Node, interval time.Duration, maxGap uint64) (sdk *ChainSDK, err error) {
 	sdk = &ChainSDK{
 		ChainID:  chainID,
@@ -405,7 +430,24 @@ func NewChainSDK(chainID, nativeID uint64, nodes []Node, interval time.Duration,
 		maxGap:   maxGap,
 		state:    make([]NodeState, len(nodes)),
 		exit:     make(chan struct{}),
+		notify:   make(chan int, 1),
 	}
 	err = sdk.Init()
 	return
 }
+
+func NewChainSDKAsync(chainID, nativeID uint64, nodes []Node, interval time.Duration, maxGap uint64) (sdk *ChainSDK) {
+	sdk = &ChainSDK{
+		ChainID:  chainID,
+		NativeID: nativeID,
+		nodes:    nodes,
+		interval: interval,
+		maxGap:   maxGap,
+		state:    make([]NodeState, len(nodes)),
+		exit:     make(chan struct{}),
+		notify:   make(chan int, 1),
+	}
+	sdk.InitAsync()
+	return
+}
+
