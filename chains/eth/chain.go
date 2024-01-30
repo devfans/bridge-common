@@ -65,6 +65,7 @@ type ChainSDK struct {
 	status   int // SDK nodes status: 1. available, 0. all down
 	height   uint64
 	interval time.Duration
+	backoff  int64
 	maxGap   uint64
 	sync.RWMutex
 	exit chan struct{}
@@ -142,6 +143,10 @@ func (s *ChainSDK) dial(indices []int) {
 	wg.Wait()
 }
 
+func (s *ChainSDK) SetBackoff(v int64) {
+	s.backoff = v
+}
+
 func (s *ChainSDK) startDialing() {
 	{
 		var indices []int
@@ -163,7 +168,7 @@ func (s *ChainSDK) startDialing() {
 					switch status {
 					case NodeUninitialized, NodeRateLimited:
 						if !included {
-							schedule[i] = now + 120
+							schedule[i] = now + s.backoff
 						}
 					case NodeHidden:
 						if included {
@@ -435,6 +440,7 @@ func NewChainSDK(chainID, nativeID uint64, nodes []Node, interval time.Duration,
 		NativeID: nativeID,
 		nodes:    nodes,
 		interval: interval,
+		backoff:  300,
 		maxGap:   maxGap,
 		state:    make([]NodeState, len(nodes)),
 		exit:     make(chan struct{}),
@@ -450,6 +456,7 @@ func NewChainSDKAsync(chainID, nativeID uint64, nodes []Node, interval time.Dura
 		NativeID: nativeID,
 		nodes:    nodes,
 		interval: interval,
+		backoff:  300,
 		maxGap:   maxGap,
 		state:    make([]NodeState, len(nodes)),
 		exit:     make(chan struct{}),
@@ -458,4 +465,5 @@ func NewChainSDKAsync(chainID, nativeID uint64, nodes []Node, interval time.Dura
 	sdk.InitAsync()
 	return
 }
+
 
