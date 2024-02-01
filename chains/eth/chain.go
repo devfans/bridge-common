@@ -426,7 +426,7 @@ func (s *ChainSDK) InitAsync() {
 		s.updateSelection()
 		go s.monitor(s.interval)
 	} ()
-	for avails := range s.nodes {
+	for avails := range s.notify {
 		if avails > 0 {
 			log.Info("ChainSDK ready now", "chain", base.GetChainName(s.ChainID), "native_id", s.NativeID, "avails", avails)
 			return
