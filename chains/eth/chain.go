@@ -324,10 +324,10 @@ func (s *ChainSDK) updateSelection() {
 	s.Unlock()
 	if shouldNotify {
 		log.Info("Chain connectivity changed", "chain", base.GetChainName(s.ChainID), "avails", avails)
-		select {
-		case s.notify <- avails:
-		default:
-		}
+	}
+	select {
+	case s.notify <- avails:
+	default:
 	}
 
 	if changed && status == 1 {
