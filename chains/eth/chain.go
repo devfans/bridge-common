@@ -392,6 +392,14 @@ func (s *ChainSDK) Stop() {
 	close(s.exit)
 }
 
+func (s *ChainSDK) Wait() {
+	for v := range s.notify {
+		if v > 0 {
+			return
+		}
+	}
+}
+
 func (s *ChainSDK) monitor(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
