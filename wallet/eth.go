@@ -74,6 +74,39 @@ func (w *EthWallet) Estimate(account accounts.Account, addr common.Address, amou
 	return
 }
 
+func (w *EthWallet) SendLight(provider Provider, nonces NonceProvider, account accounts.Account, addr common.Address, data []byte, amount *big.Int, price GasPriceOracle, limit uint64) (hash string, err error) {
+	nonce, err := nonces.Acquire()
+	if err != nil {
+		return
+	}
+	cap, tip := price.PriceWithTip()
+	tx := types.NewTx(&types.DynamicFeeTx{
+		Nonce:     nonce,
+		GasTipCap: tip,
+		GasFeeCap: cap,
+		Gas:       limit,
+		To:        &addr,
+		Value:     amount,
+		Data:      data,
+	})
+	// tx := types.NewTransaction(nonce, addr, amount, limit, gasPrice, data)
+	tx, err = provider.SignTx(account, tx, big.NewInt(int64(w.chainId)))
+	if err != nil {
+		nonces.Update(false)
+		return "", fmt.Errorf("Sign tx error %v", err)
+	}
+
+	if w.Broadcast {
+		_, err = w.sdk.Broadcast(context.Background(), tx)
+	} else {
+		err = w.sdk.Node().SendTransaction(context.Background(), tx)
+	}
+	//TODO: Check err here before update nonces
+	nonces.Update(err == nil)
+	log.Info("Sending tx", "hash", tx.Hash(), "account", account.Address, "nonce", tx.Nonce(), "limit", tx.Gas(), "gasPrice", tx.GasPrice(), "err", err)
+	return tx.Hash().String(), err
+}
+
 // NOTE: gasPrice, gasPriceX used as gas tip here!
 func (w *EthWallet) QuickSendWithAccount(account accounts.Account, addr common.Address, amount *big.Int, gasLimit uint64, price GasPriceOracle, gasPriceX *big.Float, data []byte) (hash string, err error) {
 	tip, cap, limit, err := w.Estimate(account, addr, amount, gasLimit, price, gasPriceX, data)

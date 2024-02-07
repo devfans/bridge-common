@@ -85,6 +85,35 @@ type RemoteGasPriceOracle struct {
 	upgrade bool
 }
 
+type BoostRemoteGasPriceOracle struct {
+	o *RemoteGasPriceOracle
+	boost *big.Float
+}
+
+func (o *BoostRemoteGasPriceOracle) PriceWithTip() (price *big.Int, tip *big.Int) {
+	p, t := o.o.PriceWithTip()
+	price, _ = new(big.Float).Mul(new(big.Float).SetInt(p), o.boost).Int(nil)
+	tip, _ = new(big.Float).Mul(new(big.Float).SetInt(t), o.boost).Int(nil)
+	return
+}
+
+func (o *BoostRemoteGasPriceOracle) Price() *big.Int {
+	v, _ := new(big.Float).Mul(new(big.Float).SetInt(o.o.Price()), o.boost).Int(nil)
+	return v
+}
+
+func NewBoostRemoteGasPriceOracle(sdk eth.NodeProvider, upgrade bool, interval time.Duration, boost float64) (o *BoostRemoteGasPriceOracle, err error) {
+	_o, err := NewRemoteGasPriceOracle(sdk, upgrade, interval)
+	if err != nil {
+		return
+	}
+	o = &BoostRemoteGasPriceOracle{
+		o: _o,
+		boost: big.NewFloat(boost),
+	}
+	return
+}
+
 func NewRemoteGasPriceOracle(sdk eth.NodeProvider, upgrade bool, interval time.Duration) (o *RemoteGasPriceOracle, err error) {
 	price, err := sdk.Node().SuggestGasPrice(context.Background())
 	if err != nil {

@@ -68,6 +68,7 @@ type IWallet interface {
 	SetNonceProvider(account accounts.Account, provider NonceProvider) (err error)
 	GetNonceProvider(account accounts.Account) NonceProvider
 	SetCacheNonces(accounts... accounts.Account) (err error)
+	SendLight(provider Provider, nonces NonceProvider, account accounts.Account, addr common.Address, data []byte, amount *big.Int, price GasPriceOracle, limit uint64) (hash string, err error)
 	EstimateGasWithAccount(account accounts.Account, addr common.Address, amount *big.Int, data []byte) (gasPrice *big.Int, gasLimit uint64, err error)
 	SendWithMaxLimit(chainId uint64, account accounts.Account, addr common.Address, amount *big.Int, maxLimit *big.Int, gasPrice *big.Int, gasPriceX *big.Float, data []byte) (hash string, err error)
 	QuickSendWithAccount(account accounts.Account, addr common.Address, amount *big.Int, gasLimit uint64, price GasPriceOracle, gasPriceX *big.Float, data []byte) (hash string, err error)
@@ -288,6 +289,30 @@ func (w *Wallet) sendWithAccount(dry bool, estimateWithGas bool, account account
 	}
 	//TODO: Check err here before update nonces
 	nonces.Update(err == nil)
+	log.Info("Sending tx", "hash", tx.Hash(), "account", account.Address, "nonce", tx.Nonce(), "limit", tx.Gas(), "gasPrice", tx.GasPrice(), "err", err)
+	return tx.Hash().String(), err
+}
+
+func (w *Wallet) SendLight(provider Provider, nonces NonceProvider, account accounts.Account, addr common.Address, data []byte, amount *big.Int, price GasPriceOracle, limit uint64) (hash string, err error) {
+	nonce, err := nonces.Acquire()
+	if err != nil {
+		return
+	}
+	tx := types.NewTransaction(nonce, addr, amount, limit, price.Price(), data)
+	tx, err = provider.SignTx(account, tx, big.NewInt(int64(w.chainId)))
+	if err != nil {
+		nonces.Update(false)
+		err = fmt.Errorf("Sign tx error %v", err)
+		return
+	}
+
+	if w.Broadcast {
+		_, err = w.sdk.Broadcast(context.Background(), tx)
+	} else {
+		err = w.sdk.Node().SendTransaction(context.Background(), tx)
+	}
+	nonces.Update(err == nil)
+	//TODO: Check err here before update nonces
 	log.Info("Sending tx", "hash", tx.Hash(), "account", account.Address, "nonce", tx.Nonce(), "limit", tx.Gas(), "gasPrice", tx.GasPrice(), "err", err)
 	return tx.Hash().String(), err
 }
