@@ -403,8 +403,8 @@ func (s *Clients) Create() (interface{}, error) {
 	var clients []*Client
 	for _, url := range list {
 		client := Create(url)
-		client.index = len(nodes)
 		if client != nil {
+			client.index = len(nodes)
 			nodes = append(nodes, client)
 			clients = append(clients, client)
 		}
