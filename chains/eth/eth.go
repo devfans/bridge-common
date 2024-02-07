@@ -51,19 +51,30 @@ type Client struct {
 }
 
 func New(url string) *Client {
+	c := Create(url)
+	if c == nil {
+		log.Fatal("Failed to dial client", "url", url)
+	}
+	return c
+}
+
+func Create(url string) *Client {
 	rpcClient, err := rpc.Dial(url)
 	if err != nil {
-		panic(fmt.Sprintf("failed to dial %s, err %v", url, err))
+		log.Error("Failed to dial client", "url", url, "err", err)
+		return nil
 	}
-	rawClient, err := ethclient.Dial(url)
-	if err != nil {
-		panic(fmt.Sprintf("failed to eth dial %s, err %v", url, err))
-	}
-	return &Client{
+	c := &Client{
 		Rpc:     rpcClient,
-		Client:  rawClient,
+		Client:  ethclient.NewClient(rpcClient),
 		address: url,
 	}
+	if strings.HasPrefix(url, "ws") {
+		log.Info("Connected as ws", "url", url)
+		c.url = url
+		c.ws = c.Client
+	}
+	return c
 }
 
 func (c *Client) WsClient() (r *ethclient.Client, a string) {
@@ -388,13 +399,15 @@ func (s *Clients) Select() *Client {
 
 func (s *Clients) Create() (interface{}, error) {
 	list := s.options.ListNodes()
-	clients := make([]*Client, len(list))
-	nodes := make([]Node, len(list))
-	for i, url := range list {
-		client := New(url)
-		client.index = i
-		nodes[i] = client
-		clients[i] = client
+	var nodes []Node
+	var clients []*Client
+	for _, url := range list {
+		client := Create(url)
+		client.index = len(nodes)
+		if client != nil {
+			nodes = append(nodes, client)
+			clients = append(clients, client)
+		}
 	}
 	sdk := NewChainSDKAsync(s.options.ChainID, s.options.NativeID, nodes, s.options.Interval, s.options.MaxGap)
 	return &Clients{ChainSDK: sdk, nodes: clients}, nil
