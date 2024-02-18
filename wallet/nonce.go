@@ -32,15 +32,19 @@ type NonceProvider interface {
 }
 
 func NewRemoteNonceProvider(sdk eth.NodeProvider, address common.Address) *RemoteNonceProvider {
-	return &RemoteNonceProvider{sdk, address}
+	return &RemoteNonceProvider{sdk, address, false}
 }
 
 type RemoteNonceProvider struct {
 	sdk     eth.NodeProvider
 	address common.Address
+	UsePending bool
 }
 
 func (p *RemoteNonceProvider) Acquire() (uint64, error) {
+	if p.UsePending {
+		p.sdk.Node().PendingNonceAt(context.Background(), p.address)
+	}
 	return p.sdk.Node().NonceAt(context.Background(), p.address, nil)
 }
 
@@ -63,6 +67,7 @@ type CacheNonceProvider struct {
 	address common.Address
 	sync.Mutex
 	nonce *uint64
+	UsePending bool
 }
 
 func (p *CacheNonceProvider) Acquire() (uint64, error) {
@@ -75,11 +80,19 @@ func (p *CacheNonceProvider) Acquire() (uint64, error) {
 	if nonce != nil {
 		return *nonce, nil
 	}
+	if p.UsePending {
+		return p.sdk.Node().PendingNonceAt(context.Background(), p.address)
+	}
 	return p.sdk.Node().NonceAt(context.Background(), p.address, nil)
 }
 
 func (p *CacheNonceProvider) Update(_success bool) (err error) {
-	nonce, err := p.sdk.Node().NonceAt(context.Background(), p.address, nil)
+	var nonce uint64
+	if p.UsePending {
+		nonce, err = p.sdk.Node().PendingNonceAt(context.Background(), p.address)
+	} else {
+		nonce, err = p.sdk.Node().NonceAt(context.Background(), p.address, nil)
+	}
 	if err != nil {
 		log.Error("Failed to fetch nonce for account", "err", err)
 	} else {
