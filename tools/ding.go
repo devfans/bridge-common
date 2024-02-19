@@ -44,7 +44,7 @@ func PostCardEvent(ev CardEvent) error {
 
 func PostDingCardKV(title string, keys []string, values []interface{}, btns []map[string]string) error {
 	keys = append(keys, "ReportTime")
-	values = append(values, time.Now())
+	values = append(values, time.Now().Format("06-01-02MST15:04:05.000"))
 	content := fmt.Sprintf("## %s", title)
 	for i, k := range keys {
 		if len(values) > i {
