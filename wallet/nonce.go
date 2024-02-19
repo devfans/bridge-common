@@ -19,7 +19,8 @@ package wallet
 
 import (
 	"context"
-	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/polynetwork/bridge-common/chains/eth"
@@ -57,26 +58,23 @@ func (p DummyNonceProvider) Acquire() (uint64, error) { return uint64(p), nil }
 func (p DummyNonceProvider) Update(_success bool) (err error) { return nil }
 
 func NewCacheNonceProvider(sdk eth.NodeProvider, address common.Address) *CacheNonceProvider {
-	p := &CacheNonceProvider{sdk: sdk, address: address}
-	go p.Update(true)
+	p := &CacheNonceProvider{sdk: sdk, address: address, sig: make(chan struct{}, 1), interval: time.Minute * 2, nonce: new(atomic.Pointer[uint64])}
+	p.Update(true)
+	go p.loop()
 	return p
 }
 
 type CacheNonceProvider struct {
 	sdk     eth.NodeProvider
 	address common.Address
-	sync.Mutex
-	nonce *uint64
+	nonce *atomic.Pointer[uint64]
+	interval time.Duration
+	sig chan struct{}
 	UsePending bool
 }
 
 func (p *CacheNonceProvider) Acquire() (uint64, error) {
-	p.Lock()
-	nonce := p.nonce
-	if nonce != nil {
-		p.nonce = nil
-	}
-	p.Unlock()
+	nonce := p.nonce.Swap(nil)
 	if nonce != nil {
 		return *nonce, nil
 	}
@@ -86,7 +84,29 @@ func (p *CacheNonceProvider) Acquire() (uint64, error) {
 	return p.sdk.Node().NonceAt(context.Background(), p.address, nil)
 }
 
+func (p *CacheNonceProvider) loop() {
+	for {
+		select {
+		case <- p.sig:
+		case <-time.After(p.interval):
+		}
+		p.update()
+	}
+}
+
+func(p *CacheNonceProvider) SetInterval(interval time.Duration) {
+	p.interval = interval
+}
+
 func (p *CacheNonceProvider) Update(_success bool) (err error) {
+	select {
+	case p.sig <- struct{}{}:
+	default:
+	}
+	return
+}
+
+func (p *CacheNonceProvider) update() (err error) {
 	var nonce uint64
 	if p.UsePending {
 		nonce, err = p.sdk.Node().PendingNonceAt(context.Background(), p.address)
@@ -96,9 +116,7 @@ func (p *CacheNonceProvider) Update(_success bool) (err error) {
 	if err != nil {
 		log.Error("Failed to fetch nonce for account", "err", err)
 	} else {
-		p.Lock()
-		p.nonce = &nonce
-		p.Unlock()
+		p.nonce.Store(&nonce)
 		log.Info("Updated account nonce cache", "account", p.address, "nonce", nonce)
 	}
 	return
