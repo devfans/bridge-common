@@ -11,7 +11,9 @@ import (
 	"github.com/portto/aptos-go-sdk/client"
 	"github.com/portto/aptos-go-sdk/models"
 
+	"github.com/polynetwork/bridge-common/base"
 	"github.com/polynetwork/bridge-common/chains"
+	"github.com/polynetwork/bridge-common/log"
 	"github.com/polynetwork/bridge-common/util"
 )
 
@@ -99,7 +101,9 @@ func (s *SDK) Broadcast(ctx context.Context, tx models.UserTransaction, opts ...
 			_, _ = s.nodes[id].SubmitTransaction(ctx, tx)
 		} (idx)
 	}
-	return s.nodes[nodes[0]].SubmitTransaction(ctx, tx, opts...)
+	resp, err = s.nodes[nodes[0]].SubmitTransaction(ctx, tx, opts...)
+	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", base.GetChainName(s.ChainID))
+	return 
 }
 
 func NewSDK(chainID uint64, urls []string, interval time.Duration, maxGap uint64) (*SDK, error) {

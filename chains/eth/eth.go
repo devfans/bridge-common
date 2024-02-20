@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 
+	"github.com/polynetwork/bridge-common/base"
 	"github.com/polynetwork/bridge-common/chains"
 	"github.com/polynetwork/bridge-common/log"
 	"github.com/polynetwork/bridge-common/util"
@@ -309,7 +310,9 @@ func (s *SDK) Broadcast(ctx context.Context, tx *types.Transaction) (best int, e
 			_ = s.nodes[id].SendTransaction(ctx, tx)
 		} (idx)
 	}
-	return nodes[0], s.nodes[nodes[0]].SendTransaction(ctx, tx)
+	err = s.nodes[nodes[0]].SendTransaction(ctx, tx)
+	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", base.GetChainName(s.ChainID), "tx", tx.Hash())
+	return nodes[0], err
 }
 
 func (s *SDK) Select() *Client {
@@ -390,7 +393,9 @@ func (s *Clients) Broadcast(ctx context.Context, tx *types.Transaction) (best in
 			s.nodes[id].SendTransaction(ctx, tx)
 		} (idx)
 	}
-	return nodes[0], s.nodes[nodes[0]].SendTransaction(ctx, tx)
+	err = s.nodes[nodes[0]].SendTransaction(ctx, tx)
+	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", base.GetChainName(s.ChainID), "tx", tx.Hash())
+	return nodes[0], err
 }
 
 func (s *Clients) Select() *Client {
