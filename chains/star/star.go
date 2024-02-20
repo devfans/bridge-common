@@ -27,7 +27,6 @@ import (
 	"github.com/polynetwork/bridge-common/util"
 )
 
-
 type Rpc = client.StarcoinClient
 
 type Client struct {
@@ -38,7 +37,7 @@ type Client struct {
 func New(url string) *Client {
 	client := client.NewStarcoinClient(url)
 	return &Client{
-		Rpc: &client,
+		Rpc:     &client,
 		address: url,
 	}
 }
@@ -49,7 +48,9 @@ func (c *Client) Address() string {
 
 func (c *Client) GetLatestHeight() (uint64, error) {
 	info, err := c.GetNodeInfo(context.Background())
-	if err != nil { return 0, err  }
+	if err != nil {
+		return 0, err
+	}
 	return info.GetBlockNumber()
 }
 

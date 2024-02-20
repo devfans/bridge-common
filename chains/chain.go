@@ -35,11 +35,12 @@ import (
 )
 
 type Options struct {
-	ChainID, NativeID  uint64
+	ChainID   uint64
+	NativeID  int64
 	Providers []RpcProvider
-	Nodes    []string
-	Interval time.Duration
-	MaxGap   uint64
+	Nodes     []string
+	Interval  time.Duration
+	MaxGap    uint64
 }
 
 func (o *Options) ListNodes() (list []string) {
@@ -63,7 +64,7 @@ func (o *Options) ListNodes() (list []string) {
 	for url := range urls {
 		list = append(list, url)
 	}
-	sort.Slice(list, func(i, j int) bool { return list[i] < list[j]} )
+	sort.Slice(list, func(i, j int) bool { return list[i] < list[j] })
 	return
 }
 
@@ -85,7 +86,7 @@ type Nodes interface {
 
 type ChainSDK struct {
 	sdk      SDK
-	ChainID  uint64
+	chainID  uint64
 	nodes    []SDK
 	state    []bool
 	index    int
@@ -98,12 +99,13 @@ type ChainSDK struct {
 	exit chan struct{}
 }
 
+func (s *ChainSDK) ChainID() uint64 { return s.chainID }
 func (s *ChainSDK) Key() string {
 	nodes := make([]string, len(s.nodes))
 	for i, node := range s.nodes {
 		nodes[i] = node.Address()
 	}
-	return fmt.Sprintf("SDK:%v:%s", s.ChainID, strings.Join(nodes, ":"))
+	return fmt.Sprintf("SDK:%v:%s", s.chainID, strings.Join(nodes, ":"))
 }
 
 func (s *ChainSDK) Nodes() (nodes []int) {
@@ -131,7 +133,7 @@ func (s *ChainSDK) WaitTillHeight(ctx context.Context, height uint64, interval t
 	for {
 		h, err := s.Node().GetLatestHeight()
 		if err != nil {
-			log.Error("Failed to get chain latest height err ", "chain", s.ChainID, "err", util.CompactError(err, util.RateLimitErrors))
+			log.Error("Failed to get chain latest height err ", "chain", s.chainID, "err", util.CompactError(err, util.RateLimitErrors))
 		} else if h >= height {
 			return h, true
 		}
@@ -164,7 +166,7 @@ func (s *ChainSDK) ReportDown(index int) (available bool) {
 	}
 	best := s.sdk.Address()
 	s.Unlock()
-	
+
 	log.Warn("Node marked down as reported", "addr", down, "best", best)
 	return
 }
@@ -179,22 +181,22 @@ func (s *ChainSDK) updateSelection() {
 	ch := make(chan [2]uint64, len(s.nodes))
 	target := time.Now()
 	for i, s := range s.nodes {
-		go func (index int, node SDK) {
+		go func(index int, node SDK) {
 			h, err := node.GetLatestHeight()
 			if err != nil {
 				log.Error("Ping node error", "url", node.Address(), "err", util.CompactError(err, util.RateLimitErrors))
 			}
 			ch <- [2]uint64{uint64(index), h}
-		} (i, s)
+		}(i, s)
 	}
 
 	count := len(s.nodes)
-	LOOP:
+LOOP:
 	for {
 		select {
-		case <- timer:
+		case <-timer:
 			break LOOP
-		case res := <- ch:
+		case res := <-ch:
 			elapse := time.Since(target)
 			if res[1] > 0 && best == 0 {
 				best = elapse
@@ -292,7 +294,7 @@ func (s *ChainSDK) Init() error {
 	log.Info("Initializing chain sdk", "chainID", s.ChainID)
 	s.updateSelection()
 	if !s.Available() {
-		return fmt.Errorf("all the nodes are unavailable for chain %v", s.ChainID)
+		return fmt.Errorf("all the nodes are unavailable for chain %v", s.chainID)
 	}
 	return nil
 }
@@ -309,7 +311,7 @@ func NewChainSDK(chainID uint64, nodes []SDK, interval time.Duration, maxGap uin
 	var s SDK
 	sdk = &ChainSDK{
 		sdk:      s,
-		ChainID:  chainID,
+		chainID:  chainID,
 		nodes:    nodes,
 		interval: interval,
 		maxGap:   maxGap,
@@ -324,7 +326,7 @@ func NewChainSDK(chainID uint64, nodes []SDK, interval time.Duration, maxGap uin
 }
 
 type RpcProvider interface {
-	Load(uint64) ([]string, error)
+	Load(int64) ([]string, error)
 }
 
 type JsonRpcProvider struct {
@@ -333,20 +335,25 @@ type JsonRpcProvider struct {
 }
 
 func NewJsonRpcProvider(path string) (p *JsonRpcProvider, err error) {
-	p = &JsonRpcProvider{ Path: path }
+	p = &JsonRpcProvider{Path: path}
 	f, err := os.Open(path)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	defer f.Close()
 	data, err := io.ReadAll(f)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	m := make(RpcUrlProvider)
 	err = json.Unmarshal(data, &m)
 	return
 }
 
-type RpcUrlProvider map[uint64][]string
-func NewUrlProvider(id uint64, urls []string) RpcUrlProvider { return RpcUrlProvider{id: urls} }
-func (p RpcUrlProvider) Load(id uint64) ([]string, error) { return p[id], nil }
+type RpcUrlProvider map[int64][]string
+
+func NewUrlProvider(id int64, urls []string) RpcUrlProvider { return RpcUrlProvider{id: urls} }
+func (p RpcUrlProvider) Load(id int64) ([]string, error)    { return p[id], nil }
 
 type ChainListRpcProvider struct {
 	RpcUrlProvider
@@ -355,9 +362,13 @@ type ChainListRpcProvider struct {
 func NewChainListRpcProvider() (p *ChainListRpcProvider, err error) {
 	p = &ChainListRpcProvider{RpcUrlProvider: make(RpcUrlProvider)}
 	result, err := tools.GetRaw("https://raw.githubusercontent.com/DefiLlama/chainlist/main/constants/extraRpcs.js")
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	result2, err := tools.GetRaw("https://raw.githubusercontent.com/DefiLlama/chainlist/main/constants/llamaNodesRpcs.js")
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	body := strings.SplitN(string(result), "export ", 2)[1]
 	body = TrimLines(body, 0, 4)
 	body = strings.ReplaceAll(body, "const ", "var ")
@@ -366,15 +377,25 @@ func NewChainListRpcProvider() (p *ChainListRpcProvider, err error) {
 	vm := goja.New()
 	vm.RunString("privacyStatement = {}")
 	_, err = vm.RunString(body)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	_, err = vm.RunString(body2)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	_, err = vm.RunString(`list = {};Object.keys(extraRpcs).forEach(function(id) {list[id]=extraRpcs[id]["rpcs"].map(function(o){return typeof(o) == "string" ?o:o.url })} )`)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	_, err = vm.RunString(`Object.keys(llamaNodesRpcs).forEach(function(id) {nodes=llamaNodesRpcs[id]["rpcs"].map(function(o){return typeof(o) == "string" ?o:o.url }); if (list[id]) {list[id]=list[id].concat(nodes)}else{list[id]=nodes}} )`)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	v, err := vm.RunString("JSON.stringify(list)")
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	err = json.Unmarshal([]byte(v.Export().(string)), &p.RpcUrlProvider)
 	return
 }
@@ -402,6 +423,8 @@ func TrimLines(s string, start, end int) string {
 			}
 		}
 	}
-	if end < start { end = start }
+	if end < start {
+		end = start
+	}
 	return s[start:end]
 }

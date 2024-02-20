@@ -42,11 +42,11 @@ func HardGasLimit(chain uint64) uint64 {
 }
 
 // NOTE: call on init
-func SetGasLimit(chain, limit uint64) {
+func SetGasLimit(chain uint64, limit uint64) {
 	softGasLimits[chain] = limit
 }
 
-func GetChainGasLimit(chain, limit uint64) uint64 {
+func GetChainGasLimit(chain uint64, limit uint64) uint64 {
 	soft := softGasLimits[chain]
 	if soft > 0 && limit > soft {
 		limit = soft
@@ -79,14 +79,14 @@ type GasPriceOracle interface {
 }
 
 type RemoteGasPriceOracle struct {
-	sdk eth.NodeProvider
+	sdk        eth.NodeProvider
 	price, tip *big.Int
 	sync.RWMutex
 	upgrade bool
 }
 
 type BoostRemoteGasPriceOracle struct {
-	o *RemoteGasPriceOracle
+	o     *RemoteGasPriceOracle
 	boost *big.Float
 }
 
@@ -108,7 +108,7 @@ func NewBoostRemoteGasPriceOracle(sdk eth.NodeProvider, upgrade bool, interval t
 		return
 	}
 	o = &BoostRemoteGasPriceOracle{
-		o: _o,
+		o:     _o,
 		boost: big.NewFloat(boost),
 	}
 	return
@@ -122,7 +122,9 @@ func NewRemoteGasPriceOracle(sdk eth.NodeProvider, upgrade bool, interval time.D
 	var tip *big.Int
 	if upgrade {
 		tip, err = sdk.Node().SuggestGasTipCap(context.Background())
-		if err != nil { return}
+		if err != nil {
+			return
+		}
 	}
 	o = &RemoteGasPriceOracle{sdk: sdk, price: price, upgrade: upgrade, tip: tip}
 	go o.update(interval, upgrade)
@@ -166,7 +168,7 @@ type AptGasPriceOracle interface {
 }
 
 type RemoteAptGasPriceOracle struct {
-	sdk *apt.SDK
+	sdk              *apt.SDK
 	price, low, high uint64
 	sync.RWMutex
 }

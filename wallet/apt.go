@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -341,7 +341,7 @@ func (w *AptWallet) Send(ctx context.Context, account *models.AccountAddress, pa
 
 func NewAptWallet(config *Config, sdk *apt.SDK) (w *AptWallet) {
 	if config.ReadFile == nil {
-		config.ReadFile = ioutil.ReadFile
+		config.ReadFile = os.ReadFile
 	}
 	data, err := config.ReadFile(config.Path)
 	if err != nil {

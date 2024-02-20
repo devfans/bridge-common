@@ -39,9 +39,13 @@ type EthWallet struct {
 func (w *EthWallet) Estimate(account accounts.Account, addr common.Address, amount *big.Int, gasLimit uint64, price GasPriceOracle, gasPriceX *big.Float, data []byte) (tip, cap *big.Int, limit uint64, err error) {
 	if price == nil {
 		tip, err = w.GasTip()
-		if err != nil { return }
+		if err != nil {
+			return
+		}
 		cap, err = w.GasPrice()
-		if err != nil { return }
+		if err != nil {
+			return
+		}
 	} else {
 		cap, tip = price.PriceWithTip()
 	}
@@ -66,7 +70,7 @@ func (w *EthWallet) Estimate(account accounts.Account, addr common.Address, amou
 	}
 
 	gasLimit = uint64(1.3 * float32(gasLimit))
-	limit = GetChainGasLimit(w.chainId, gasLimit)
+	limit = GetChainGasLimit(w.sdk.ChainID(), gasLimit)
 	if limit < gasLimit {
 		err = fmt.Errorf("Send tx estimated gas limit(%v) higher than max %v", gasLimit, limit)
 		return
@@ -90,7 +94,7 @@ func (w *EthWallet) SendLight(provider Provider, nonces NonceProvider, account a
 		Data:      data,
 	})
 	// tx := types.NewTransaction(nonce, addr, amount, limit, gasPrice, data)
-	tx, err = provider.SignTx(account, tx, big.NewInt(int64(w.chainId)))
+	tx, err = provider.SignTx(account, tx, big.NewInt(w.nativeID))
 	if err != nil {
 		nonces.Update(false)
 		return "", fmt.Errorf("Sign tx error %v", err)
@@ -135,7 +139,7 @@ func (w *EthWallet) QuickSendWithAccount(account accounts.Account, addr common.A
 		Data:      data,
 	})
 	// tx := types.NewTransaction(nonce, addr, amount, limit, gasPrice, data)
-	tx, err = provider.SignTx(account, tx, big.NewInt(int64(w.chainId)))
+	tx, err = provider.SignTx(account, tx, big.NewInt(w.nativeID))
 	if err != nil {
 		nonces.Update(false)
 		return "", fmt.Errorf("Sign tx error %v", err)
@@ -189,7 +193,7 @@ func (w *EthWallet) QuickSendWithMaxLimit(chainId uint64, account accounts.Accou
 		Data:      data,
 	})
 	// tx := types.NewTransaction(nonce, addr, amount, limit, gasPrice, data)
-	tx, err = provider.SignTx(account, tx, big.NewInt(int64(w.chainId)))
+	tx, err = provider.SignTx(account, tx, big.NewInt(w.nativeID))
 	if err != nil {
 		nonces.Update(false)
 		return "", fmt.Errorf("Sign tx error %v", err)
@@ -200,7 +204,7 @@ func (w *EthWallet) QuickSendWithMaxLimit(chainId uint64, account accounts.Accou
 	} else {
 		err = w.sdk.Node().SendTransaction(context.Background(), tx)
 	}
-	
+
 	//TODO: Check err here before update nonces
 	nonces.Update(err == nil)
 	log.Info("Compose dst chain tx", "hash", tx.Hash(), "account", account.Address, "nonce", tx.Nonce(), "limit", tx.Gas(), "gasPrice", tx.GasPrice())

@@ -66,12 +66,7 @@ func GetStateName(state int) string {
 	}
 }
 
-type ChainID uint64
-func(id ChainID) String() string {
-	return GetChainName(uint64(id))
-}
-
-func GetChainName(id uint64) string {
+func ChainName(id uint64) string {
 	switch id {
 	case POLY:
 		return "Poly"

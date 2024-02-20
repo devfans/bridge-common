@@ -28,16 +28,16 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/polynetwork/bridge-common/base"
 	"github.com/polynetwork/bridge-common/chains/eth"
 	"github.com/polynetwork/bridge-common/log"
-	"github.com/polynetwork/bridge-common/base"
 	"github.com/polynetwork/bridge-common/util"
 )
 
 type Config struct {
 	ReadFile func(string) ([]byte, error) `json:"-"`
 
-	ChainId           uint64
+	NativeID          int64
 	KeyStoreProviders []*KeyStoreProviderConfig
 	KeyProviders      []string
 	Nodes             []string
@@ -68,7 +68,7 @@ type IWallet interface {
 	GetBalance(common.Address) (*big.Int, error)
 	SetNonceProvider(account accounts.Account, provider NonceProvider) (err error)
 	GetNonceProvider(account accounts.Account) NonceProvider
-	SetCacheNonces(accounts... accounts.Account) (err error)
+	SetCacheNonces(accounts ...accounts.Account) (err error)
 	SendLight(provider Provider, nonces NonceProvider, account accounts.Account, addr common.Address, data []byte, amount *big.Int, price GasPriceOracle, limit uint64) (hash string, err error)
 	EstimateGasWithAccount(account accounts.Account, addr common.Address, amount *big.Int, data []byte) (gasPrice *big.Int, gasLimit uint64, err error)
 	SendWithMaxLimit(chainId uint64, account accounts.Account, addr common.Address, amount *big.Int, maxLimit *big.Int, gasPrice *big.Int, gasPriceX *big.Float, data []byte) (hash string, err error)
@@ -78,7 +78,7 @@ type IWallet interface {
 
 type Wallet struct {
 	sync.RWMutex
-	chainId   uint64
+	nativeID  int64
 	providers map[accounts.Account]Provider
 	provider  Provider                           // active account provider
 	account   accounts.Account                   // active account
@@ -99,7 +99,7 @@ type Provider interface {
 
 func New(config *Config, sdk eth.NodeProvider) *Wallet {
 	w := &Wallet{
-		config: config, sdk: sdk, chainId: config.ChainId, providers: map[accounts.Account]Provider{},
+		config: config, sdk: sdk, nativeID: config.NativeID, providers: map[accounts.Account]Provider{},
 		nonces:   map[accounts.Account]NonceProvider{},
 		accounts: []accounts.Account{},
 	}
@@ -129,7 +129,7 @@ func (w *Wallet) Accounts() []accounts.Account {
 }
 
 // Should be called after Init and before uses
-func (w *Wallet) SetCacheNonces(accounts... accounts.Account) (err error) {
+func (w *Wallet) SetCacheNonces(accounts ...accounts.Account) (err error) {
 	w.Lock()
 	defer w.Unlock()
 	for _, account := range accounts {
@@ -194,11 +194,11 @@ func (w *Wallet) VerifyChainId() {
 	if err != nil {
 		util.Fatal("Failed to verfiy chain id %v", err)
 	}
-	id := uint64(chainId.Int64())
-	if w.chainId != 0 && w.chainId != id {
-		util.Fatal("ChainID does not match specified %v, on chain: %v", w.chainId, id)
+	id := chainId.Int64()
+	if w.nativeID != 0 && w.nativeID != id {
+		util.Fatal("ChainID does not match specified %v, on chain: %v", w.nativeID, id)
 	}
-	w.chainId = id
+	w.nativeID = id
 }
 
 func (w *Wallet) GetAccount(account accounts.Account) (provider Provider, nonces NonceProvider) {
@@ -265,7 +265,7 @@ func (w *Wallet) sendWithAccount(dry bool, estimateWithGas bool, account account
 	}
 
 	gasLimit = uint64(1.3 * float32(gasLimit))
-	limit := GetChainGasLimit(w.chainId, gasLimit)
+	limit := GetChainGasLimit(w.sdk.ChainID(), gasLimit)
 	if limit < gasLimit {
 		err = fmt.Errorf("Send tx estimated gas limit(%v) higher than max %v", gasLimit, limit)
 		return
@@ -276,7 +276,7 @@ func (w *Wallet) sendWithAccount(dry bool, estimateWithGas bool, account account
 		return
 	}
 	tx := types.NewTransaction(nonce, addr, amount, limit, gasPrice, data)
-	tx, err = provider.SignTx(account, tx, big.NewInt(int64(w.chainId)))
+	tx, err = provider.SignTx(account, tx, big.NewInt(w.nativeID))
 	if err != nil {
 		nonces.Update(false)
 		err = fmt.Errorf("Sign tx error %v", err)
@@ -300,7 +300,7 @@ func (w *Wallet) SendLight(provider Provider, nonces NonceProvider, account acco
 		return
 	}
 	tx := types.NewTransaction(nonce, addr, amount, limit, price.Price(), data)
-	tx, err = provider.SignTx(account, tx, big.NewInt(int64(w.chainId)))
+	tx, err = provider.SignTx(account, tx, big.NewInt(w.nativeID))
 	if err != nil {
 		nonces.Update(false)
 		err = fmt.Errorf("Sign tx error %v", err)
@@ -386,7 +386,7 @@ func (w *Wallet) SendWithMaxLimit(chainId uint64, account accounts.Account, addr
 		if err != nil {
 			err = fmt.Errorf("Get gas price error %v", err)
 			return
-		}	
+		}
 	}
 
 	if gasPriceX != nil {
@@ -412,7 +412,7 @@ func (w *Wallet) SendWithMaxLimit(chainId uint64, account accounts.Account, addr
 		gasLimit = uint64(1.2 * float32(gasLimit))
 	}
 
-	limit := GetChainGasLimit(w.chainId, gasLimit)
+	limit := GetChainGasLimit(w.sdk.ChainID(), gasLimit)
 	if limit < gasLimit {
 		err = fmt.Errorf("Send tx estimated gas limit(%v) higher than chain max limit %v", gasLimit, limit)
 		return
@@ -430,7 +430,7 @@ func (w *Wallet) SendWithMaxLimit(chainId uint64, account accounts.Account, addr
 		return
 	}
 	tx := types.NewTransaction(nonce, addr, amount, limit, gasPrice, data)
-	tx, err = provider.SignTx(account, tx, big.NewInt(int64(w.chainId)))
+	tx, err = provider.SignTx(account, tx, big.NewInt(w.nativeID))
 	if err != nil {
 		nonces.Update(false)
 		err = fmt.Errorf("Sign tx error %v", err)

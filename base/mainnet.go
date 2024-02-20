@@ -105,8 +105,8 @@ var ETH_CHAINS = []uint64{
 	DEXIT, CLOUDTX, ZKSYNC, POLYGONZK, FEVM, ETHW, ETHF,
 }
 
-func NativeID(chainID uint64) uint64 {
-	switch chainID {
+func NativeID(uint64 uint64) int64 {
+	switch uint64 {
 	case ETH:
 		return 1
 	case BSC:
@@ -154,6 +154,6 @@ func NativeID(chainID uint64) uint64 {
 	case ETHF:
 		return 513100
 	default:
-		panic(fmt.Sprintf("no native id found for %v", chainID))
+		panic(fmt.Sprintf("no native id found for %v", uint64))
 	}
 }

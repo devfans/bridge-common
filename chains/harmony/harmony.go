@@ -42,24 +42,28 @@ func New(url string) *Client {
 	}
 }
 
-func(c *Client) HeaderByNumber(height uint64) (header *Header, err error) {
+func (c *Client) HeaderByNumber(height uint64) (header *Header, err error) {
 	resp, err := c.caller.CallContextRaw(
 		context.Background(), "hmy_getHeaderByNumber",
 		custom.ToBlockNumArg(big.NewInt(int64(height))))
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	header = new(Header)
 	err = json.Unmarshal(resp.Result, header)
-	if err != nil { header = nil }
+	if err != nil {
+		header = nil
+	}
 	return
 }
 
-func(c *Client) HeaderByNumberRLP(height uint64) (data []byte, err error) {
+func (c *Client) HeaderByNumberRLP(height uint64) (data []byte, err error) {
 	resp, err := c.caller.CallContextRaw(
 		context.Background(), "hmy_getHeaderByNumberRLPHex",
 		custom.ToBlockNumArg(big.NewInt(int64(height))))
 
 	if err == nil {
-		data, err = hex.DecodeString(string(resp.Result[1:len(resp.Result)-1]))
+		data, err = hex.DecodeString(string(resp.Result[1 : len(resp.Result)-1]))
 	}
 	return
 }

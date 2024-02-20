@@ -11,25 +11,23 @@ import (
 	"github.com/portto/aptos-go-sdk/client"
 	"github.com/portto/aptos-go-sdk/models"
 
-	"github.com/polynetwork/bridge-common/base"
 	"github.com/polynetwork/bridge-common/chains"
 	"github.com/polynetwork/bridge-common/log"
 	"github.com/polynetwork/bridge-common/util"
 )
-
 
 type Rpc = client.AptosClient
 
 type Client struct {
 	Rpc
 	address string
-	index int
+	index   int
 }
 
 func New(url string) *Client {
 	client := client.NewAptosClient(url)
 	return &Client{
-		Rpc: client,
+		Rpc:     client,
 		address: url,
 	}
 }
@@ -39,7 +37,7 @@ func (c *Client) Address() string {
 }
 
 func (c *Client) Balance(account models.AccountAddress, coin models.TypeTagStruct) (balance uint64, err error) {
-	resp := new(struct { Data client.CoinStoreResource })
+	resp := new(struct{ Data client.CoinStoreResource })
 	err = c.GetResource(context.Background(), hex.EncodeToString(account[:]), fmt.Sprintf("0x1::coin::CoinStore<%s>", coin.ToString()), resp)
 	if err == nil {
 		balance, err = strconv.ParseUint(resp.Data.Coin.Value, 10, 0)
@@ -61,9 +59,13 @@ func (c *Client) Balances(account models.AccountAddress) (balances map[string]ui
 				continue
 			}
 			balance, err := strconv.ParseUint(res.Data.CoinStoreResource.Coin.Value, 10, 0)
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			addr, err := models.HexToAccountAddress(ret[1])
-			if err != nil { return nil, err }
+			if err != nil {
+				return nil, err
+			}
 			balances[models.TypeTagStruct{Address: addr, Module: ret[2], Name: ret[3]}.ToString()] = balance
 		}
 	}
@@ -72,7 +74,9 @@ func (c *Client) Balances(account models.AccountAddress) (balances map[string]ui
 
 func (c *Client) GetLatestHeight() (uint64, error) {
 	info, err := c.LedgerInformation(context.Background())
-	if err != nil { return 0, err  }
+	if err != nil {
+		return 0, err
+	}
 	return strconv.ParseUint(info.LedgerVersion, 10, 0)
 }
 
@@ -99,11 +103,11 @@ func (s *SDK) Broadcast(ctx context.Context, tx models.UserTransaction, opts ...
 	for _, idx := range nodes[1:] {
 		go func(id int) {
 			_, _ = s.nodes[id].SubmitTransaction(ctx, tx)
-		} (idx)
+		}(idx)
 	}
 	resp, err = s.nodes[nodes[0]].SubmitTransaction(ctx, tx, opts...)
-	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", base.GetChainName(s.ChainID))
-	return 
+	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", s.ChainID())
+	return
 }
 
 func NewSDK(chainID uint64, urls []string, interval time.Duration, maxGap uint64) (*SDK, error) {

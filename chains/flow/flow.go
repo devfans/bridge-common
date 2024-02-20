@@ -2,12 +2,13 @@ package flow
 
 import (
 	"context"
+	"time"
+
 	"github.com/onflow/flow-go-sdk/client"
 	"github.com/polynetwork/bridge-common/chains"
 	"github.com/polynetwork/bridge-common/log"
 	"github.com/polynetwork/bridge-common/util"
 	"google.golang.org/grpc"
-	"time"
 )
 
 type Rpc = client.Client

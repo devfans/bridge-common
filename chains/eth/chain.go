@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/polynetwork/bridge-common/base"
 	"github.com/polynetwork/bridge-common/log"
 	"github.com/polynetwork/bridge-common/util"
 )
@@ -49,15 +48,15 @@ const (
 	NodeUninitialized NodeState = 0
 	NodeHidden        NodeState = 1
 
-	NodeRateLimited   NodeState = 10
-	NodeUnavailable   NodeState = 15
-	NodeAvailable     NodeState = 20
+	NodeRateLimited NodeState = 10
+	NodeUnavailable NodeState = 15
+	NodeAvailable   NodeState = 20
 )
 
 type ChainSDK struct {
 	node     Node
-	ChainID  uint64
-	NativeID uint64
+	chainID  uint64
+	nativeID int64
 	nodes    []Node
 	state    []NodeState
 	index    int
@@ -68,7 +67,7 @@ type ChainSDK struct {
 	backoff  int64
 	maxGap   uint64
 	sync.RWMutex
-	exit chan struct{}
+	exit   chan struct{}
 	notify chan int
 }
 
@@ -77,7 +76,7 @@ func (s *ChainSDK) Key() string {
 	for i, node := range s.nodes {
 		nodes[i] = node.Address()
 	}
-	return fmt.Sprintf("SDK:%v:%s", s.ChainID, strings.Join(nodes, ":"))
+	return fmt.Sprintf("SDK:%v:%s", s.chainID, strings.Join(nodes, ":"))
 }
 
 func (s *ChainSDK) Nodes() (nodes []int) {
@@ -92,6 +91,7 @@ func (s *ChainSDK) Nodes() (nodes []int) {
 	return
 }
 
+func (s *ChainSDK) ChainID() uint64 { return s.chainID }
 func (s *ChainSDK) Height() uint64 {
 	s.RLock()
 	defer s.RUnlock()
@@ -105,7 +105,7 @@ func (s *ChainSDK) WaitTillHeight(ctx context.Context, height uint64, interval t
 	for {
 		h, err := s.Node().LatestHeight(ctx)
 		if err != nil {
-			log.Error("Failed to get chain latest height err ", "chain", s.ChainID, "err", util.CompactError(err, util.RateLimitErrors))
+			log.Error("Failed to get chain latest height err ", "chain", s.chainID, "err", util.CompactError(err, util.RateLimitErrors))
 		} else if h >= height {
 			return h, true
 		}
@@ -121,13 +121,13 @@ func (s *ChainSDK) dial(indices []int) {
 	wg := new(sync.WaitGroup)
 	for _, _i := range indices {
 		wg.Add(1)
-		go func (i int) {
+		go func(i int) {
 			defer wg.Done()
 			node := s.nodes[i]
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second * 2)
-			chainID, err := node.ChainID(ctx)
-			if err != nil || chainID == nil || chainID.Uint64() != s.NativeID {
-				log.Debug("Failed to verify chain id", "chainID", chainID, "expected", s.NativeID, "addr", node.Address(), "err", util.CompactError(err, util.RateLimitErrors))
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+			id, err := node.ChainID(ctx)
+			if err != nil || id == nil || id.Int64() != s.nativeID {
+				log.Debug("Failed to verify chain id", "chainID", id, "expected", s.nativeID, "addr", node.Address(), "err", util.CompactError(err, util.RateLimitErrors))
 			} else {
 				s.Lock()
 				switch s.state[i] {
@@ -135,7 +135,7 @@ func (s *ChainSDK) dial(indices []int) {
 					s.state[i] = NodeUnavailable
 				}
 				s.Unlock()
-				log.Info("Validated node", "chainID", s.NativeID, "addr", node.Address())
+				log.Info("Validated node", "chainID", s.nativeID, "addr", node.Address())
 			}
 			cancel()
 		}(_i)
@@ -179,9 +179,9 @@ func (s *ChainSDK) startDialing() {
 				s.RUnlock()
 			}
 			select {
-			case <- s.exit:
+			case <-s.exit:
 				return
-			case <- ticker.C:
+			case <-ticker.C:
 			}
 			now := time.Now().Unix()
 			var indices []int
@@ -193,7 +193,7 @@ func (s *ChainSDK) startDialing() {
 			}
 			s.dial(indices)
 		}
-	} ()
+	}()
 }
 
 func (s *ChainSDK) UpdateNodeStatus(index int, status NodeState) (available bool) {
@@ -208,7 +208,7 @@ func (s *ChainSDK) UpdateNodeStatus(index int, status NodeState) (available bool
 	addr := s.nodes[index].Address()
 	s.state[index] = status
 
-	if s.index == index  {
+	if s.index == index {
 		for i, state := range s.state {
 			if i != index && state == NodeAvailable {
 				s.index = i
@@ -250,27 +250,29 @@ func (s *ChainSDK) updateSelection() {
 	state := make([]uint64, len(candidates))
 	ch := make(chan [2]uint64, total)
 	target := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	for i, s := range candidates {
-		if s == nil { continue }
-		go func (index int, node Node) {
+		if s == nil {
+			continue
+		}
+		go func(index int, node Node) {
 			h, err := node.LatestHeight(ctx)
 			if err != nil {
 				log.Debug("Ping node error", "url", node.Address(), "err", util.CompactError(err, util.RateLimitErrors))
 			}
 			ch <- [2]uint64{uint64(index), h}
-		} (i, s)
+		}(i, s)
 	}
 
-	LOOP:
+LOOP:
 	for {
 		select {
 		case <-s.exit:
 			return
-		case <- ctx.Done():
+		case <-ctx.Done():
 			break LOOP
-		case res := <- ch:
+		case res := <-ch:
 			elapse := time.Since(target)
 			if res[1] > 0 && best == 0 {
 				best = elapse
@@ -292,7 +294,7 @@ func (s *ChainSDK) updateSelection() {
 	status := 1
 	if node == nil {
 		status = 0
-		log.Warn("Temp unavailabitlity for all node", "chain", s.ChainID)
+		log.Warn("Temp unavailabitlity for all node", "chain", s.chainID)
 		if len(s.nodes) > 0 {
 			node = s.nodes[0]
 		}
@@ -311,7 +313,7 @@ func (s *ChainSDK) updateSelection() {
 		nodeStatus := NodeAvailable
 		if h == 0 {
 			nodeStatus = NodeRateLimited
-		} else if h + s.maxGap < height {
+		} else if h+s.maxGap < height {
 			nodeStatus = NodeUnavailable
 		} else {
 			avails++
@@ -323,7 +325,7 @@ func (s *ChainSDK) updateSelection() {
 	}
 	s.Unlock()
 	if shouldNotify {
-		log.Info("Chain connectivity changed", "chain", base.GetChainName(s.ChainID), "avails", avails)
+		log.Info("Chain connectivity changed", "chain", s.chainID, "avails", avails)
 	}
 	select {
 	case s.notify <- avails:
@@ -331,7 +333,7 @@ func (s *ChainSDK) updateSelection() {
 	}
 
 	if changed && status == 1 {
-		log.Debug("Changing best node", "chain_id", s.ChainID, "height", height, "elapse", perf, "delta", perf-best, "addr", node.Address())
+		log.Debug("Changing best node", "chain_id", s.chainID, "height", height, "elapse", perf, "delta", perf-best, "addr", node.Address())
 	}
 }
 
@@ -406,7 +408,7 @@ func (s *ChainSDK) monitor(interval time.Duration) {
 	for range ticker.C {
 		select {
 		case <-s.exit:
-			log.Info("Exiting nodes monitoring", "chainID", s.ChainID)
+			log.Info("Exiting nodes monitoring", "chainID", s.chainID)
 			return
 		default:
 			s.updateSelection()
@@ -415,12 +417,12 @@ func (s *ChainSDK) monitor(interval time.Duration) {
 }
 
 func (s *ChainSDK) Init() error {
-	log.Info("Initializing chain sdk", "chainID", s.ChainID, "size", len(s.nodes))
+	log.Info("Initializing chain sdk", "chainID", s.chainID, "size", len(s.nodes))
 	s.startDialing()
 	s.updateSelection()
 	if !s.Available() {
 		s.Stop()
-		return fmt.Errorf("all the nodes are unavailable for chain %v", s.ChainID)
+		return fmt.Errorf("all the nodes are unavailable for chain %v", s.chainID)
 	} else {
 		go s.monitor(s.interval)
 	}
@@ -428,24 +430,24 @@ func (s *ChainSDK) Init() error {
 }
 
 func (s *ChainSDK) InitAsync() {
-	go func () {
-		log.Info("Initializing chain sdk", "chainID", s.ChainID, "size", len(s.nodes))
+	go func() {
+		log.Info("Initializing chain sdk", "chainID", s.chainID, "size", len(s.nodes))
 		s.startDialing()
 		s.updateSelection()
 		go s.monitor(s.interval)
-	} ()
+	}()
 	for avails := range s.notify {
 		if avails > 0 {
-			log.Info("ChainSDK ready now", "chain", base.GetChainName(s.ChainID), "native_id", s.NativeID, "avails", avails)
+			log.Info("ChainSDK ready now", "chain", s.chainID, "native_id", s.nativeID, "avails", avails)
 			return
 		}
 	}
 }
 
-func NewChainSDK(chainID, nativeID uint64, nodes []Node, interval time.Duration, maxGap uint64) (sdk *ChainSDK, err error) {
+func NewChainSDK(chainID uint64, nativeID int64, nodes []Node, interval time.Duration, maxGap uint64) (sdk *ChainSDK, err error) {
 	sdk = &ChainSDK{
-		ChainID:  chainID,
-		NativeID: nativeID,
+		chainID:  chainID,
+		nativeID: nativeID,
 		nodes:    nodes,
 		interval: interval,
 		backoff:  300,
@@ -458,10 +460,10 @@ func NewChainSDK(chainID, nativeID uint64, nodes []Node, interval time.Duration,
 	return
 }
 
-func NewChainSDKAsync(chainID, nativeID uint64, nodes []Node, interval time.Duration, maxGap uint64) (sdk *ChainSDK) {
+func NewChainSDKAsync(chainID uint64, nativeID int64, nodes []Node, interval time.Duration, maxGap uint64) (sdk *ChainSDK) {
 	sdk = &ChainSDK{
-		ChainID:  chainID,
-		NativeID: nativeID,
+		chainID:  chainID,
+		nativeID: nativeID,
 		nodes:    nodes,
 		interval: interval,
 		backoff:  300,
@@ -473,5 +475,3 @@ func NewChainSDKAsync(chainID, nativeID uint64, nodes []Node, interval time.Dura
 	sdk.InitAsync()
 	return
 }
-
-

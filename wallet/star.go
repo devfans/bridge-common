@@ -21,12 +21,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 
+	"github.com/blocktree/go-owcrypt"
 	"github.com/polynetwork/bridge-common/chains/star"
 	"github.com/polynetwork/bridge-common/log"
 	"github.com/starcoinorg/starcoin-go/client"
-	"github.com/blocktree/go-owcrypt"
 	"github.com/starcoinorg/starcoin-go/types"
 )
 
@@ -68,7 +68,7 @@ func (w *StarWallet) Send(ctx context.Context, account *types.AccountAddress, pa
 
 func NewStarWallet(config *Config, sdk *star.SDK) (w *StarWallet) {
 	if config.ReadFile == nil {
-		config.ReadFile = ioutil.ReadFile
+		config.ReadFile = os.ReadFile
 	}
 	data, err := config.ReadFile(config.Path)
 	if err != nil {

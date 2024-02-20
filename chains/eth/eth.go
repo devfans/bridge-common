@@ -32,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
 
-	"github.com/polynetwork/bridge-common/base"
 	"github.com/polynetwork/bridge-common/chains"
 	"github.com/polynetwork/bridge-common/log"
 	"github.com/polynetwork/bridge-common/util"
@@ -46,9 +45,9 @@ type Client struct {
 	ws *ethclient.Client
 	sync.RWMutex
 	subsOn bool
-	subs []chan<-uint64
-	url string
-	index int
+	subs   []chan<- uint64
+	url    string
+	index  int
 }
 
 func New(url string) *Client {
@@ -116,7 +115,6 @@ func (c *Client) Connect(url string) (err error) {
 	return
 }
 
-
 func (c *Client) dispatch(ch <-chan *types.Header) {
 	for header := range ch {
 		height := header.Number.Uint64()
@@ -132,7 +130,7 @@ func (c *Client) dispatch(ch <-chan *types.Header) {
 	}
 }
 
-func (c *Client) listen(ch chan <- *types.Header) {
+func (c *Client) listen(ch chan<- *types.Header) {
 	for {
 		ws, url := c.WsClient()
 		if ws == nil {
@@ -145,7 +143,7 @@ func (c *Client) listen(ch chan <- *types.Header) {
 		if err != nil {
 			log.Error("ws subscribe new head failure", "url", url, "err", err)
 		} else {
-			err = <- sub.Err()
+			err = <-sub.Err()
 			log.Error("ws subscription closed", "url", url, "err", err)
 			sub.Unsubscribe()
 		}
@@ -155,7 +153,9 @@ func (c *Client) listen(ch chan <- *types.Header) {
 
 func (c *Client) Listen(url string) (err error) {
 	err = c.Connect(url)
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	c.Lock()
 	if c.subsOn {
 		err = fmt.Errorf("ws client was already listening, url %s new url %s", c.url, url)
@@ -163,7 +163,9 @@ func (c *Client) Listen(url string) (err error) {
 		c.subsOn = true
 	}
 	c.Unlock()
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	ch := make(chan *types.Header, 10)
 	go c.dispatch(ch)
 	go c.listen(ch)
@@ -181,7 +183,7 @@ func (c *Client) GetProof(addr string, key string, height uint64) (proof *ETHPro
 	return
 }
 
-func(c *Client) Subscribe(ch chan <-uint64) {
+func (c *Client) Subscribe(ch chan<- uint64) {
 	c.Lock()
 	has := false
 	for _, sub := range c.subs {
@@ -196,7 +198,7 @@ func(c *Client) Subscribe(ch chan <-uint64) {
 	c.Unlock()
 }
 
-func(c *Client) Unsubscribe(ch chan <-uint64) {
+func (c *Client) Unsubscribe(ch chan<- uint64) {
 	c.Lock()
 	defer c.Unlock()
 	index := len(c.subs)
@@ -214,9 +216,9 @@ func(c *Client) Unsubscribe(ch chan <-uint64) {
 	if index == start {
 		start = 1
 	} else if index < end {
-		copy(c.subs[index: len(c.subs)-1], c.subs[index+1: len(c.subs)])
+		copy(c.subs[index:len(c.subs)-1], c.subs[index+1:len(c.subs)])
 	}
-	c.subs = c.subs[start: end]
+	c.subs = c.subs[start:end]
 }
 
 func (c *Client) GetLatestHeight() (uint64, error) {
@@ -308,10 +310,10 @@ func (s *SDK) Broadcast(ctx context.Context, tx *types.Transaction) (best int, e
 	for _, idx := range nodes[1:] {
 		go func(id int) {
 			_ = s.nodes[id].SendTransaction(ctx, tx)
-		} (idx)
+		}(idx)
 	}
 	err = s.nodes[nodes[0]].SendTransaction(ctx, tx)
-	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", base.GetChainName(s.ChainID), "tx", tx.Hash())
+	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", s.ChainID(), "tx", tx.Hash())
 	return nodes[0], err
 }
 
@@ -369,9 +371,9 @@ func (s *SDK) BatchCall(ctx context.Context, b []rpc.BatchElem) (int, error) {
 	nodes := s.Nodes()
 	for _, idx := range nodes[1:] {
 		go func(id int) {
-			defer func() { recover() } ()
+			defer func() { recover() }()
 			_ = s.nodes[id].Rpc.BatchCallContext(ctx, b)
-		} (idx)
+		}(idx)
 	}
 	return nodes[0], s.nodes[nodes[0]].Rpc.BatchCallContext(ctx, b)
 }
@@ -391,10 +393,10 @@ func (s *Clients) Broadcast(ctx context.Context, tx *types.Transaction) (best in
 	for _, idx := range nodes[1:] {
 		go func(id int) {
 			s.nodes[id].SendTransaction(ctx, tx)
-		} (idx)
+		}(idx)
 	}
 	err = s.nodes[nodes[0]].SendTransaction(ctx, tx)
-	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", base.GetChainName(s.ChainID), "tx", tx.Hash())
+	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", s.chainID, "tx", tx.Hash())
 	return nodes[0], err
 }
 
@@ -432,9 +434,9 @@ func (s *Clients) BatchCall(ctx context.Context, b []rpc.BatchElem) (int, error)
 	nodes := s.Nodes()
 	for _, idx := range nodes[1:] {
 		go func(id int) {
-			defer func() { recover() } ()
+			defer func() { recover() }()
 			_ = s.nodes[id].Rpc.BatchCallContext(ctx, b)
-		} (idx)
+		}(idx)
 	}
 	return nodes[0], s.nodes[nodes[0]].Rpc.BatchCallContext(ctx, b)
 }
@@ -475,6 +477,7 @@ func WithProviders(opt *chains.Options) (*Clients, error) {
 }
 
 var ErrAllNodesUnavailable = errors.New("all node unavailable")
+
 func (s *Clients) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	index, ok := s.Best()
 	if !ok {
@@ -524,7 +527,8 @@ func (c *Clients) EstimateGas(ctx context.Context, from, to common.Address, data
 	return uint64(hex), nil
 }
 
-type NodeProvider interface{
+type NodeProvider interface {
+	ChainID() uint64
 	Node() *Client
 	Select() *Client
 	Broadcast(ctx context.Context, tx *types.Transaction) (best int, err error)
