@@ -66,8 +66,8 @@ func GetStateName(state int) string {
 	}
 }
 
-type ChaindID uint64
-func (id ChaindID) String() string { return ChainName(uint64(id)) }
+type ChainID uint64
+func (id ChainID) String() string { return ChainName(uint64(id)) }
 
 func ChainName(id uint64) string {
 	switch id {
