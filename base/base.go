@@ -201,7 +201,7 @@ func SameAsETH(chainId uint64) bool {
 
 func UseDynamicFeeTx(chainId uint64) bool {
 	switch chainId {
-	case ETH, MATIC, FEVM:
+	case ETH, MATIC, FEVM, ZETA:
 		return true
 	default:
 		return false
