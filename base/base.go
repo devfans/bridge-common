@@ -67,117 +67,79 @@ func GetStateName(state int) string {
 }
 
 type ChainID uint64
+
 func (id ChainID) String() string { return ChainName(uint64(id)) }
 
+var chainNames = map[uint64]string{
+	POLY:       "Poly",
+	ETH:        "Ethereum",
+	RINKEBY:    "Ethereum-Rinkeby",
+	ONT:        "Ontology",
+	NEO:        "Neo",
+	BSC:        "Bsc",
+	HECO:       "Heco",
+	O3:         "O3",
+	OK:         "OK",
+	MATIC:      "Polygon",
+	HEIMDALL:   "Heimdall",
+	NEO3:       "NEO3",
+	SWITCHEO:   "Switcheo",
+	PLT:        "Palette",
+	PLT2:       "Palette2",
+	ARBITRUM:   "Arbitrum",
+	ZILLIQA:    "Zilliqa",
+	XDAI:       "Xdai",
+	OPTIMISM:   "Optimism",
+	FANTOM:     "Fantom",
+	METIS:      "Metis",
+	AVA:        "Avalanche",
+	BOBA:       "Boba",
+	PIXIE:      "Pixie",
+	OASIS:      "Oasis",
+	HSC:        "Hsc",
+	HARMONY:    "Harmony",
+	BYTOM:      "Bytom",
+	BCSPALETTE: "BCS Palette",
+	KCC:        "KCC",
+	STARCOIN:   "Starcoin",
+	BINANCE:    "Binance",
+	OKX:        "Okx",
+	GATE:       "Gate",
+	KUCOIN:     "Kucoin",
+	ONTEVM:     "ONTEVM",
+	MILKO:      "Milkomeda",
+	CUBE:       "Cube",
+	KAVA:       "Kava",
+	ZKSYNC:     "zkSync",
+	CELO:       "Celo",
+	CLOVER:     "CLV P-Chain",
+	CONFLUX:    "Conflux",
+	ASTAR:      "Astar",
+	APTOS:      "Aptos",
+	BRISE:      "Bitgert",
+	CORE:       "CoreDao",
+	XDC:        "XDC",
+	POLYGONZK:  "PolygonZK",
+	FEVM:       "FIL",
+	ETHW:       "ETHW",
+	ETHF:       "ETHF",
+	ZKFAIR:     "ZKFair",
+	MERLIN:     "Merlin",
+	B2:         "B2",
+	MANTLE:     "Mantle",
+	SCROLL:     "Sroll",
+	ZORA:       "Zora",
+	MANTA:      "Manta",
+	STARK:      "Stark",
+	ZETA:       "Zeta",
+}
+
 func ChainName(id uint64) string {
-	switch id {
-	case POLY:
-		return "Poly"
-	case ETH:
-		return "Ethereum"
-	case RINKEBY:
-		return "Ethereum-Rinkeby"
-	case ONT:
-		return "Ontology"
-	case NEO:
-		return "Neo"
-	case BSC:
-		return "Bsc"
-	case HECO:
-		return "Heco"
-	case O3:
-		return "O3"
-	case OK:
-		return "OK"
-	case MATIC:
-		return "Polygon"
-	case HEIMDALL:
-		return "Heimdall"
-	case NEO3:
-		return "NEO3"
-	case SWITCHEO:
-		return "Switcheo"
-	case PLT:
-		return "Palette"
-	case PLT2:
-		return "Palette2"
-	case ARBITRUM:
-		return "Arbitrum"
-	case ZILLIQA:
-		return "Zilliqa"
-	case XDAI:
-		return "Xdai"
-	case OPTIMISM:
-		return "Optimism"
-	case FANTOM:
-		return "Fantom"
-	case METIS:
-		return "Metis"
-	case AVA:
-		return "Avalanche"
-	case BOBA:
-		return "Boba"
-	case PIXIE:
-		return "Pixie"
-	case OASIS:
-		return "Oasis"
-	case HSC:
-		return "Hsc"
-	case HARMONY:
-		return "Harmony"
-	case BYTOM:
-		return "Bytom"
-	case BCSPALETTE:
-		return "BCS Palette"
-	case KCC:
-		return "KCC"
-	case STARCOIN:
-		return "Starcoin"
-	case BINANCE:
-		return "Binance"
-	case OKX:
-		return "Okx"
-	case GATE:
-		return "Gate"
-	case KUCOIN:
-		return "Kucoin"
-	case ONTEVM:
-		return "ONTEVM"
-	case MILKO:
-		return "Milkomeda"
-	case CUBE:
-		return "Cube"
-	case KAVA:
-		return "Kava"
-	case ZKSYNC:
-		return "zkSync"
-	case CELO:
-		return "Celo"
-	case CLOVER:
-		return "CLV P-Chain"
-	case CONFLUX:
-		return "Conflux"
-	case ASTAR:
-		return "Astar"
-	case APTOS:
-		return "Aptos"
-	case BRISE:
-		return "Bitgert"
-	case CORE:
-		return "CoreDao"
-	case XDC:
-		return "XDC"
-	case POLYGONZK:
-		return "PolygonZK"
-	case FEVM:
-		return "FIL"
-	case ETHW:
-		return "ETHW"
-	case ETHF:
-		return "ETHF"
-	default:
-		return fmt.Sprintf("Unknown(%d)", id)
+	name, ok := chainNames[id]
+	if ok {
+		return name
 	}
+	return fmt.Sprintf("Unknown(%d)", id)
 }
 
 func BlocksToSkip(chainId uint64) uint64 {

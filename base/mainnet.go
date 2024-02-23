@@ -79,9 +79,18 @@ const (
 	KUCOIN  uint64 = 9004
 
 	// Others
-	CORE uint64 = 101
-	KLAY uint64 = 102
-	CANTO uint64 = 103
+	CORE   uint64 = 101
+	KLAY   uint64 = 102
+	CANTO  uint64 = 103
+	ZKFAIR uint64 = 104
+	MERLIN uint64 = 105
+	B2     uint64 = 106
+	MANTLE uint64 = 107
+	SCROLL uint64 = 108
+	ZORA   uint64 = 109
+	MANTA  uint64 = 110
+	STARK  uint64 = 111
+	ZETA   uint64 = 112
 
 	XDC       uint64 = 201
 	POLYGONZK uint64 = 202
@@ -102,7 +111,7 @@ var CHAINS = []uint64{
 var ETH_CHAINS = []uint64{
 	ETH, BSC, HECO, OK, MATIC, O3, PLT, ARBITRUM, XDAI, OPTIMISM, FANTOM, AVA, METIS, BOBA, PIXIE, OASIS, HSC, HARMONY,
 	BYTOM, BCSPALETTE, KCC, ONTEVM, MILKO, CUBE, KAVA, ZKSYNC, CELO, CLOVER, CONFLUX, ASTAR, BRISE, CORE, KLAY, CANTO, XDC,
-	DEXIT, CLOUDTX, ZKSYNC, POLYGONZK, FEVM, ETHW, ETHF,
+	DEXIT, CLOUDTX, ZKSYNC, POLYGONZK, FEVM, ETHW, ETHF, ZKFAIR, MERLIN, B2, MANTLE, SCROLL, ZORA, MANTA, STARK, ZETA,
 }
 
 func NativeID(uint64 uint64) int64 {
@@ -153,6 +162,24 @@ func NativeID(uint64 uint64) int64 {
 		return 10001
 	case ETHF:
 		return 513100
+	case ZKFAIR:
+		return 42766
+	case MERLIN:
+		return 4200
+	case B2:
+		return 0
+	case MANTLE:
+		return 5000
+	case SCROLL:
+		return 534352
+	case ZORA:
+		return 7777777
+	case MANTA:
+		return 169
+	case STARK:
+		return 0x534e5f4d41494e
+	case ZETA:
+		return 7000
 	default:
 		panic(fmt.Sprintf("no native id found for %v", uint64))
 	}
