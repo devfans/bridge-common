@@ -190,12 +190,8 @@ func (w *Wallet) Init() (err error) {
 }
 
 func (w *Wallet) VerifyChainId() {
-	chainId, err := w.sdk.Node().ChainID(context.Background())
-	if err != nil {
-		util.Fatal("Failed to verfiy chain id %v", err)
-	}
-	id := chainId.Int64()
-	if w.nativeID != 0 && w.nativeID != id {
+	id := base.NativeID(w.sdk.ChainID())
+	if id == 0 || (w.nativeID != 0 && w.nativeID != id) {
 		util.Fatal("ChainID does not match specified %v, on chain: %v", w.nativeID, id)
 	}
 	w.nativeID = id
