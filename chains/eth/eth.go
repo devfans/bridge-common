@@ -505,12 +505,12 @@ func (s *Clients) CallContextWithRetry(ctx context.Context, retry func(error) bo
 	for err != nil {
 		if util.ErrorMatch(err, util.RateLimitErrors) {
 			s.UpdateNodeStatus(index, NodeRateLimited)
-			index, ok = s.Next(index)
-			if !ok {
-				return ErrAllNodesUnavailable
-			}
 		} else if !retry(err) {
 			return err
+		}
+		index, ok = s.Next(index)
+		if !ok {
+			return ErrAllNodesUnavailable
 		}
 		err = s.nodes[index].Rpc.CallContext(ctx, result, method, args...)
 	}
