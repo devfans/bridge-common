@@ -496,6 +496,28 @@ func (s *Clients) CallContext(ctx context.Context, result interface{}, method st
 	return err
 }
 
+func (s *Clients) CallContextWithRetry(ctx context.Context, retry func(error) bool, result interface{}, method string, args ...interface{}) error {
+	index, ok := s.Best()
+	if !ok {
+		return ErrAllNodesUnavailable
+	}
+	err := s.nodes[index].Rpc.CallContext(ctx, result, method, args...)
+	for err != nil {
+		if util.ErrorMatch(err, util.RateLimitErrors) {
+			s.UpdateNodeStatus(index, NodeRateLimited)
+			index, ok = s.Next(index)
+			if !ok {
+				return ErrAllNodesUnavailable
+			}
+		} else if !retry(err) {
+			return err
+		}
+		err = s.nodes[index].Rpc.CallContext(ctx, result, method, args...)
+	}
+	// log.Info("Call context", "node", s.nodes[index].address)
+	return err
+}
+
 func (c *Clients) GetLatestHeight(ctx context.Context) (uint64, error) {
 	var result hexutil.Big
 	err := c.CallContext(ctx, &result, "eth_blockNumber")
