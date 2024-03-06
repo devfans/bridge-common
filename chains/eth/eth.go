@@ -478,17 +478,21 @@ func WithProviders(opt *chains.Options) (*Clients, error) {
 
 var ErrAllNodesUnavailable = errors.New("all node unavailable")
 
-func (s *Clients) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+func (s *Clients) CallContext(ctx context.Context, retryOnErrors []string, result interface{}, method string, args ...interface{}) error {
 	index, ok := s.Best()
 	if !ok {
 		return ErrAllNodesUnavailable
 	}
 	err := s.nodes[index].Rpc.CallContext(ctx, result, method, args...)
-	for util.ErrorMatch(err, util.RateLimitErrors) {
-		s.UpdateNodeStatus(index, NodeRateLimited)
-		index, ok = s.Next(index)
-		if !ok {
-			return ErrAllNodesUnavailable
+	for err != nil {
+		if util.ErrorMatch(err, util.RateLimitErrors) {
+			s.UpdateNodeStatus(index, NodeRateLimited)
+			index, ok = s.Next(index)
+			if !ok {
+				return ErrAllNodesUnavailable
+			}
+		} else if !util.ErrorMatch(err, retryOnErrors) {
+			return err
 		}
 		err = s.nodes[index].Rpc.CallContext(ctx, result, method, args...)
 	}
@@ -498,7 +502,7 @@ func (s *Clients) CallContext(ctx context.Context, result interface{}, method st
 
 func (c *Clients) GetLatestHeight(ctx context.Context) (uint64, error) {
 	var result hexutil.Big
-	err := c.CallContext(ctx, &result, "eth_blockNumber")
+	err := c.CallContext(ctx, nil, &result, "eth_blockNumber")
 	for err != nil {
 		return 0, err
 	}
@@ -520,7 +524,7 @@ func (c *Clients) EstimateGas(ctx context.Context, from, to common.Address, data
 	if gasPrice != nil {
 		arg["gasPrice"] = (*hexutil.Big)(gasPrice)
 	}
-	err := c.CallContext(ctx, &hex, "eth_estimateGas", arg)
+	err := c.CallContext(ctx, nil, &hex, "eth_estimateGas", arg)
 	if err != nil {
 		return 0, err
 	}
