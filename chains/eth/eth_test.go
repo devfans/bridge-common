@@ -2,6 +2,7 @@ package eth
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/polynetwork/bridge-common/chains"
@@ -40,5 +41,39 @@ func TestClients(t *testing.T) {
 	for i:=0; i < 10000000; i++ {
 		h, err := c.GetLatestHeight(context.Background())
 		log.Info("Tick", "height", h, "err", err)
+	}
+}
+
+type A struct {
+	Value int `json:"value"`
+}
+
+func TestJson(t *testing.T) {
+	f := func (s string, a interface{}) {
+		err := json.Unmarshal([]byte(s), &a)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	{
+		s := `{"value": 3}`
+		r := new(Raw)
+		f(s, r)
+		var a A
+		f(string([]byte(*r)), &a)
+		c := make(chan int, 1)
+		close(c)
+		c <- 1
+		t.Logf("%s %+v", *r, a)
+	}
+	{
+		var a A
+		f(`{"value": 3}`, a)
+		t.Logf("%+v", a)
+	}
+	{
+		var a *A
+		f("{}", a)
+		t.Logf("%+v", *a)
 	}
 }

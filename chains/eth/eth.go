@@ -19,11 +19,13 @@ package eth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -477,6 +479,66 @@ func WithProviders(opt *chains.Options) (*Clients, error) {
 }
 
 var ErrAllNodesUnavailable = errors.New("all node unavailable")
+
+type Raw []byte
+func (m *Raw) Decode(v interface{}) error {
+	return json.Unmarshal(*m, v)
+}
+
+// UnmarshalJSON sets *m to a copy of data.
+func (m *Raw) UnmarshalJSON(data []byte) error {
+	*m = data
+	return nil
+}
+
+func (s *Clients) CallContextAll(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+	ch := make(chan error)
+	rest := new(atomic.Bool)
+	for _, i := range s.Nodes() {
+		go func(index int) {
+			res := new(Raw)
+			err := s.nodes[index].Rpc.CallContext(ctx, res, method, args...)
+			if util.ErrorMatch(err, util.RateLimitErrors) {
+				s.UpdateNodeStatus(index, NodeRateLimited)
+			} else {
+				if rest.CompareAndSwap(false, true) {
+					if err == nil {
+						err = res.Decode(&result)
+					}
+					ch <- err
+				}
+			}
+		}(i)
+	}
+	err := <- ch
+	close(ch)
+	return err
+}
+
+
+func (s *Clients) CallContextAllWithSkip(ctx context.Context, skip func(error) bool, result interface{}, method string, args ...interface{}) error {
+	ch := make(chan error)
+	rest := new(atomic.Bool)
+	for _, i := range s.Nodes() {
+		go func(index int) {
+			res := new(Raw)
+			err := s.nodes[index].Rpc.CallContext(ctx, res, method, args...)
+			if util.ErrorMatch(err, util.RateLimitErrors) {
+				s.UpdateNodeStatus(index, NodeRateLimited)
+			} else if !skip(err) {
+				if rest.CompareAndSwap(false, true) {
+					if err == nil {
+						err = res.Decode(&result)
+					}
+					ch <- err
+				}
+			}
+		}(i)
+	}
+	err := <- ch
+	close(ch)
+	return err
+}
 
 func (s *Clients) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	index, ok := s.Best()
