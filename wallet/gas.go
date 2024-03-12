@@ -115,6 +115,17 @@ type BoostRemoteGasPriceOracle struct {
 	boost *big.Float
 }
 
+func (o *BoostRemoteGasPriceOracle) WithNewBoost(x *big.Float) *BoostRemoteGasPriceOracle {
+	return &BoostRemoteGasPriceOracle{
+		o: o.o,
+		boost: x,
+	}
+}
+
+func (o *BoostRemoteGasPriceOracle) WithoutBoost() *RemoteGasPriceOracle {
+	return o.o
+}
+
 func (o *BoostRemoteGasPriceOracle) PriceWithTip() (price *big.Int, tip *big.Int) {
 	p, t := o.o.PriceWithTip()
 	price, _ = new(big.Float).Mul(new(big.Float).SetInt(p), o.boost).Int(nil)
