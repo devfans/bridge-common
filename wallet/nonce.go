@@ -57,6 +57,14 @@ type DummyNonceProvider uint64
 func (p DummyNonceProvider) Acquire() (uint64, error) { return uint64(p), nil }
 func (p DummyNonceProvider) Update(_success bool) (err error) { return nil }
 
+func WrapNonce(nonce NonceProvider) (DummyNonceProvider, error) {
+	n, err := nonce.Acquire()
+	if err != nil {
+		return DummyNonceProvider(0), err
+	}
+	return DummyNonceProvider(n), nil
+}
+
 func NewCacheNonceProvider(sdk eth.NodeProvider, address common.Address) *CacheNonceProvider {
 	p := &CacheNonceProvider{sdk: sdk, address: address, sig: make(chan struct{}, 1), interval: time.Minute * 2, nonce: new(atomic.Pointer[uint64])}
 	p.Update(true)

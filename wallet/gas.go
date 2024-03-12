@@ -78,6 +78,31 @@ type GasPriceOracle interface {
 	PriceWithTip() (*big.Int, *big.Int)
 }
 
+type DummyGasOracle struct {
+	price, tip *big.Int
+}
+
+func (o *DummyGasOracle) PriceWithTip() (price *big.Int, tip *big.Int) {
+	return o.price, o.tip
+}
+
+func (o *DummyGasOracle) Price() *big.Int {
+	return o.price
+}
+
+func (o *DummyGasOracle) Boost(x float64) {
+	boost := big.NewFloat(x)
+	o.price, _ = new(big.Float).Mul(new(big.Float).SetInt(o.price), boost).Int(nil)
+	if o.tip != nil {
+		o.tip, _ = new(big.Float).Mul(new(big.Float).SetInt(o.tip), boost).Int(nil)
+	}
+}
+
+func WrapGas(o GasPriceOracle) *DummyGasOracle {
+	price, tip := o.PriceWithTip()
+	return &DummyGasOracle{price: price, tip: tip}
+}
+
 type RemoteGasPriceOracle struct {
 	sdk        eth.NodeProvider
 	price, tip *big.Int
