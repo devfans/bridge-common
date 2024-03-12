@@ -78,7 +78,7 @@ func (w *EthWallet) Estimate(account accounts.Account, addr common.Address, amou
 	return
 }
 
-func (w *EthWallet) SendLight(provider Provider, nonces NonceProvider, account accounts.Account, addr common.Address, data []byte, amount *big.Int, price GasPriceOracle, limit uint64) (hash string, err error) {
+func (w *EthWallet) SendLight(ctx context.Context, provider Provider, nonces NonceProvider, account accounts.Account, addr common.Address, data []byte, amount *big.Int, price GasPriceOracle, limit uint64) (hash string, err error) {
 	nonce, err := nonces.Acquire()
 	if err != nil {
 		return
@@ -101,9 +101,9 @@ func (w *EthWallet) SendLight(provider Provider, nonces NonceProvider, account a
 	}
 
 	if w.Broadcast {
-		_, err = w.sdk.Broadcast(context.Background(), tx)
+		_, err = w.sdk.Broadcast(ctx, tx)
 	} else {
-		err = w.sdk.Node().SendTransaction(context.Background(), tx)
+		err = w.sdk.Node().SendTransaction(ctx, tx)
 	}
 	//TODO: Check err here before update nonces
 	nonces.Update(err == nil)
