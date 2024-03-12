@@ -315,7 +315,7 @@ func (s *SDK) Broadcast(ctx context.Context, tx *types.Transaction) (best int, e
 		}(idx)
 	}
 	err = s.nodes[nodes[0]].SendTransaction(ctx, tx)
-	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", s.ChainID(), "tx", tx.Hash())
+	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", s.ChainID(), "tx", tx.Hash(), "nonce", tx.Nonce())
 	return nodes[0], err
 }
 
@@ -398,7 +398,7 @@ func (s *Clients) Broadcast(ctx context.Context, tx *types.Transaction) (best in
 		}(idx)
 	}
 	err = s.nodes[nodes[0]].SendTransaction(ctx, tx)
-	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", s.chainID, "tx", tx.Hash())
+	log.Info("Broadcasting tx", "nodes", len(nodes), "chain", s.chainID, "tx", tx.Hash(), "nonce", tx.Nonce())
 	return nodes[0], err
 }
 
