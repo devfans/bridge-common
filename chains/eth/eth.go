@@ -492,9 +492,15 @@ func (m *Raw) UnmarshalJSON(data []byte) error {
 }
 
 func (s *Clients) CallContextAll(ctx context.Context, result interface{}, method string, args ...interface{}) error {
+	nodes := s.Nodes()
+	if len(nodes) == 0 {
+		return ErrAllNodesUnavailable
+	}
 	ch := make(chan error)
 	rest := new(atomic.Bool)
-	for _, i := range s.Nodes() {
+	wg := new(sync.WaitGroup)
+	wg.Add(len(nodes))
+	for _, i := range nodes {
 		go func(index int) {
 			res := new(Raw)
 			err := s.nodes[index].Rpc.CallContext(ctx, res, method, args...)
@@ -508,8 +514,15 @@ func (s *Clients) CallContextAll(ctx context.Context, result interface{}, method
 					ch <- err
 				}
 			}
+			wg.Done()
 		}(i)
 	}
+	go func() {
+		wg.Wait()
+		if rest.CompareAndSwap(false, true) {
+			ch <- ErrAllNodesUnavailable
+		}
+	} ()
 	err := <- ch
 	close(ch)
 	return err
@@ -517,9 +530,15 @@ func (s *Clients) CallContextAll(ctx context.Context, result interface{}, method
 
 
 func (s *Clients) CallContextAllWithSkip(ctx context.Context, skip func(error) bool, result interface{}, method string, args ...interface{}) error {
+	nodes := s.Nodes()
+	if len(nodes) == 0 {
+		return ErrAllNodesUnavailable
+	}
 	ch := make(chan error)
 	rest := new(atomic.Bool)
-	for _, i := range s.Nodes() {
+	wg := new(sync.WaitGroup)
+	wg.Add(len(nodes))
+	for _, i := range nodes {
 		go func(index int) {
 			res := new(Raw)
 			err := s.nodes[index].Rpc.CallContext(ctx, res, method, args...)
@@ -533,8 +552,15 @@ func (s *Clients) CallContextAllWithSkip(ctx context.Context, skip func(error) b
 					ch <- err
 				}
 			}
+			wg.Done()
 		}(i)
 	}
+	go func() {
+		wg.Wait()
+		if rest.CompareAndSwap(false, true) {
+			ch <- ErrAllNodesUnavailable
+		}
+	} ()
 	err := <- ch
 	close(ch)
 	return err
