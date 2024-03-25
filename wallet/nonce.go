@@ -59,8 +59,8 @@ func (p *RemoteNonceProvider) Fill(nonce uint64, force bool) {
 }
 
 type DummyNonceProvider uint64
-func (p DummyNonceProvider) Acquire() (uint64, error) { return uint64(p), nil }
-func (p DummyNonceProvider) Update(_success bool) (err error) { return nil }
+func (p *DummyNonceProvider) Acquire() (uint64, error) { return uint64(*p), nil }
+func (p *DummyNonceProvider) Update(_success bool) (err error) { return nil }
 func (p *DummyNonceProvider) Fill(nonce uint64, force bool) {
 	if force {
 		*p = DummyNonceProvider(nonce)
