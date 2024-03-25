@@ -30,6 +30,7 @@ import (
 type NonceProvider interface {
 	Acquire() (uint64, error)
 	Update(bool) error
+	Fill(uint64, bool)
 }
 
 func NewRemoteNonceProvider(sdk eth.NodeProvider, address common.Address) *RemoteNonceProvider {
@@ -53,9 +54,20 @@ func (p *RemoteNonceProvider) Update(success bool) error {
 	return nil
 }
 
+func (p *RemoteNonceProvider) Fill(nonce uint64, force bool) {
+	return
+}
+
 type DummyNonceProvider uint64
 func (p DummyNonceProvider) Acquire() (uint64, error) { return uint64(p), nil }
 func (p DummyNonceProvider) Update(_success bool) (err error) { return nil }
+func (p *DummyNonceProvider) Fill(nonce uint64, force bool) {
+	if force {
+		*p = DummyNonceProvider(nonce)
+	}
+	return
+}
+
 
 func WrapNonce(nonce NonceProvider) (DummyNonceProvider, error) {
 	n, err := nonce.Acquire()
@@ -126,6 +138,15 @@ func (p *CacheNonceProvider) update() (err error) {
 	} else {
 		p.nonce.Store(&nonce)
 		log.Info("Updated account nonce cache", "account", p.address, "nonce", nonce)
+	}
+	return
+}
+
+func (p *CacheNonceProvider) Fill(nonce uint64, force bool) {
+	if force {
+		p.nonce.Store(&nonce)
+	} else {
+		p.nonce.CompareAndSwap(nil, &nonce)
 	}
 	return
 }
