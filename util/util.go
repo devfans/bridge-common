@@ -28,6 +28,16 @@ import (
 	"time"
 )
 
+func Int(f float64) (b *big.Int) {
+	b, _ = big.NewFloat(f).Int(nil)
+	return
+}
+
+func Float(b *big.Int) (f float64) {
+	f, _ = new(big.Float).SetInt(b).Float64()
+	return
+}
+
 func Min(nums ...uint64) (min uint64) {
 	if len(nums) > 0 {
 		min = nums[0]

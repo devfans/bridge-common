@@ -78,6 +78,37 @@ type GasPriceOracle interface {
 	PriceWithTip() (*big.Int, *big.Int)
 }
 
+type LimitedGasOracle struct {
+	limit *big.Int
+	o GasPriceOracle
+}
+
+func NewLimitedGasOracle(o GasPriceOracle, limit *big.Int) *LimitedGasOracle {
+	return &LimitedGasOracle{
+		limit: limit,
+		o: o,
+	}
+}
+
+func (o *LimitedGasOracle) PriceWithTip() (price *big.Int, tip *big.Int) {
+	p, t := o.o.PriceWithTip()
+	sum := new(big.Int).Add(p, t)
+	if o.limit.Cmp(sum) < 0 {
+		rate := util.Float(o.limit) / util.Float(sum)
+		p = util.Int(rate * util.Float(p))
+		t = util.Int(rate * util.Float(t))
+	}
+	return p, t
+}
+
+func (o *LimitedGasOracle) Price() *big.Int {
+	p := o.o.Price()
+	if o.limit.Cmp(p) < 0 {
+		return o.limit
+	}
+	return p
+}
+
 type DummyGasOracle struct {
 	price, tip *big.Int
 }
