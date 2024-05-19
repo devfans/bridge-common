@@ -210,6 +210,13 @@ func (o *RemoteGasPriceOracle) update(interval time.Duration, upgrade bool) {
 		if err != nil {
 			log.Error("Failed to update gas price", "err", err)
 		} else {
+			if upgrade && tip.Cmp(price) > 0 {
+				switch o.sdk.ChainID() {
+				case base.FEVM:
+					price = new(big.Int).Mul(tip, big.NewInt(2))
+					log.Info("Setting price as tip*2", "chain", o.sdk.ChainID())
+				}
+			}
 			o.Lock()
 			o.price = price
 			o.tip = tip
