@@ -167,7 +167,7 @@ func NativeID(uint64 uint64) int64 {
 	case MERLIN:
 		return 4200
 	case B2:
-		return 0
+		return 223
 	case MANTLE:
 		return 5000
 	case SCROLL:
