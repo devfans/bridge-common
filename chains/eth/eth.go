@@ -297,6 +297,12 @@ func (c *Client) Index() int {
 	return c.index
 }
 
+func (c *Client) Close() {
+	if c.Rpc != nil {
+		c.Rpc.Close()
+	}
+}
+
 type SDK struct {
 	*chains.ChainSDK
 	nodes   []*Client
@@ -643,4 +649,24 @@ type NodeProvider interface {
 	Select() *Client
 	Broadcast(ctx context.Context, tx *types.Transaction) (best int, err error)
 	BatchCall(ctx context.Context, b []rpc.BatchElem) (int, error)
+}
+
+type LightClients struct {
+	nodes []string
+}
+
+func NewLightClients(nodes []string) *LightClients {
+	return &LightClients{nodes: nodes}
+}
+
+func (l *LightClients) Iter() func() *Client {
+	nodes := l.nodes
+	return func() *Client {
+		if len(nodes) > 0 {
+			c := Create(nodes[0])
+			nodes = nodes[1:]
+			return c
+		}
+		return nil
+	}
 }
