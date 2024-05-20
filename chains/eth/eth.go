@@ -659,14 +659,14 @@ func NewLightClients(nodes []string) *LightClients {
 	return &LightClients{nodes: nodes}
 }
 
-func (l *LightClients) Iter() func() *Client {
-	nodes := l.nodes
-	return func() *Client {
-		if len(nodes) > 0 {
-			c := Create(nodes[0])
-			nodes = nodes[1:]
-			return c
+func (l *LightClients) Iter(i int) func() (*Client, bool) {
+	last := i + len(l.nodes)
+	return func() (*Client, bool) {
+		if i < last {
+			node := l.nodes[i%len(l.nodes)]
+			i++
+			return Create(node), i == last
 		}
-		return nil
+		return nil, true
 	}
 }
