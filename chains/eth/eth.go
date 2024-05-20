@@ -53,14 +53,14 @@ type Client struct {
 }
 
 func New(url string) *Client {
-	c := Create(url)
+	c := Create(url, 0)
 	if c == nil {
 		log.Fatal("Failed to dial client", "url", url)
 	}
 	return c
 }
 
-func Create(url string) *Client {
+func Create(url string, index int) *Client {
 	rpcClient, err := rpc.Dial(url)
 	if err != nil {
 		log.Error("Failed to dial client", "url", url, "err", err)
@@ -70,6 +70,7 @@ func Create(url string) *Client {
 		Rpc:     rpcClient,
 		Client:  ethclient.NewClient(rpcClient),
 		address: url,
+		index: index,
 	}
 	if strings.HasPrefix(url, "ws") {
 		log.Info("Connected as ws", "url", url)
@@ -417,9 +418,8 @@ func (s *Clients) Create() (interface{}, error) {
 	var nodes []Node
 	var clients []*Client
 	for _, url := range list {
-		client := Create(url)
+		client := Create(url, len(nodes))
 		if client != nil {
-			client.index = len(nodes)
 			nodes = append(nodes, client)
 			clients = append(clients, client)
 		}
@@ -659,14 +659,14 @@ func NewLightClients(nodes []string) *LightClients {
 	return &LightClients{nodes: nodes}
 }
 
-func (l *LightClients) Iter(i int) func() (*Client, bool) {
+func (l *LightClients) Iter(i int) func() (*Client) {
 	last := i + len(l.nodes)
-	return func() (*Client, bool) {
-		if i < last {
-			node := l.nodes[i%len(l.nodes)]
+	return func() (c *Client) {
+		for c == nil && i < last {
+			index := i % len(l.nodes)
+			c = Create(l.nodes[index], index)
 			i++
-			return Create(node), i == last
 		}
-		return nil, true
+		return
 	}
 }
