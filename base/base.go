@@ -132,6 +132,7 @@ var chainNames = map[uint64]string{
 	MANTA:      "Manta",
 	STARK:      "Stark",
 	ZETA:       "Zeta",
+	BITLAYER:   "Bitlayer",
 }
 
 func ChainName(id uint64) string {
